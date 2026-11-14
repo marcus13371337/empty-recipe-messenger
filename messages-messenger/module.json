@@ -1,0 +1,216 @@
+{
+  "id": "messages-messenger",
+  "name": "Messenger",
+  "description": "Brings the person's Facebook Messenger chats into the messages module and sends through it.",
+  "version": "0.1.0",
+  "uses": [
+    "messages"
+  ],
+  "connectors": [
+    "messenger"
+  ],
+  "helperPrograms": {
+    "messenger": {
+      "title": "Messenger helper",
+      "for": "Keeps your Messenger account connected, so your chats come into Messages and your replies go out.",
+      "version": "0.1.0",
+      "args": [],
+      "platforms": {
+        "darwin-arm64": {
+          "url": "https://github.com/marcus13371337/messenger-helper/releases/download/v0.1.0/messenger-helper-darwin-arm64",
+          "sha256": "102df96899d1705505fff8610e32811d031a00b2323e9ae4dbafe56dde57a6a9"
+        },
+        "darwin-x64": {
+          "url": "https://github.com/marcus13371337/messenger-helper/releases/download/v0.1.0/messenger-helper-darwin-x64",
+          "sha256": "683f13f630322f24d4ffe16509571c04e877b00f99e3fabcf4facfa3d00097c7"
+        }
+      }
+    }
+  },
+  "jobs": [
+    {
+      "job": "sync",
+      "timeout": "5m"
+    },
+    {
+      "job": "send",
+      "timeout": "5m"
+    }
+  ],
+  "schedules": [
+    {
+      "job": "sync",
+      "every": "5m",
+      "catchUp": true
+    },
+    {
+      "job": "send",
+      "every": "1m",
+      "catchUp": true
+    }
+  ],
+  "triggers": [
+    {
+      "job": "sync",
+      "connection": "messenger",
+      "on": [
+        "changed",
+        "added",
+        "removed"
+      ]
+    },
+    {
+      "job": "send",
+      "collection": "messages/messages"
+    }
+  ],
+  "actions": [
+    {
+      "function": "older",
+      "title": "Fetch a conversation's earlier messages",
+      "input": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "conversation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "before": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [
+          "account",
+          "conversation",
+          "before",
+          "limit"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "function": "search",
+      "title": "Search an account's messages",
+      "input": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "conversation": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "account",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "function": "attachment",
+      "title": "Fetch an attachment",
+      "input": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "account",
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "function": "openAttachment",
+      "title": "Open an attachment on the Mac",
+      "input": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "account",
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "function": "showAttachment",
+      "title": "Show an attachment in the Finder",
+      "input": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "account",
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "function": "openConversation",
+      "title": "Open a chat in Messages",
+      "input": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "conversation": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "account",
+          "conversation"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
