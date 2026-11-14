@@ -24,6 +24,7 @@ export function fakeHelper() {
   const listeners = new Map<string, Set<(data: JsonValue) => void>>();
   const asked: { method: string; params: JsonObject }[] = [];
   let loggedIn = true;
+  let echoes = true;
   let count = 0;
 
   const emit = (event: string, data: JsonValue) => {
@@ -65,11 +66,17 @@ export function fakeHelper() {
           unread: chat.unread,
         })),
     }),
-    messages: ({ conversation_id }) => {
+    messages: ({ conversation_id, limit, before }) => {
       const chat = chats.get(String(conversation_id));
       if (!chat) throw new Error("That conversation is unknown.");
       if (chat.encrypted) throw new Error("Meta cannot serve the history of an encrypted chat.");
-      return { messages: history.get(chat.id) ?? [] };
+      const newestFirst = [...(history.get(chat.id) ?? [])].reverse();
+      const start = typeof before === "string" ? Number(before) : 0;
+      const end = start + (typeof limit === "number" ? limit : 50);
+      return {
+        messages: newestFirst.slice(start, end).reverse(),
+        ...(end < newestFirst.length && { next: String(end) }),
+      };
     },
     send: ({ conversation_id, text, files }) => {
       const chat = String(conversation_id);
@@ -82,7 +89,7 @@ export function fakeHelper() {
       }));
       const sent = message(chat, ME, typeof text === "string" ? text : "", 0, { attachments });
       history.get(chat)?.push(sent);
-      emit("message", sent);
+      if (echoes) emit("message", sent);
       return { messages: [sent] };
     },
     attachment: ({ ref }) => {
@@ -145,6 +152,9 @@ export function fakeHelper() {
       return said;
     },
     emit,
+    noEchoes() {
+      echoes = false;
+    },
     logOut(reason: string) {
       loggedIn = false;
       emit("state", { state: "logged_out", code: "bad_session", message: reason });

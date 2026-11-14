@@ -168,3 +168,92 @@ test("a chat keeps its last line when a sync brings nothing new", async () => {
   expect((await chat("t1")).conversation).toMatchObject({ last_text: "Dinner on Friday?" });
   expect((await chat("e1")).conversation).toMatchObject({ last_text: "Are you there?" });
 });
+
+test("a chat busier than one page since the last sync keeps every message", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  for (let minute = 300; minute > 0; minute -= 1) fake.said("t1", ANNA, `Line ${minute}`, minute);
+
+  await engine.job("messages-messenger/sync");
+
+  expect((await chat("t1")).messages).toHaveLength(300);
+});
+
+test("a read receipt stays when a later sync reads the chat again", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.said("t1", ME, "See you at eight", 2);
+  await engine.job("messages-messenger/sync");
+
+  fake.emit("read", {
+    conversation_id: "t1",
+    reader_id: ANNA.id,
+    read_at: new Date().toISOString(),
+  });
+  await engine.job("messages-messenger/sync");
+  fake.said("t1", ANNA, "Great", 0);
+  await engine.job("messages-messenger/sync");
+
+  const [mine] = (await chat("t1")).messages;
+  expect(mine?.read).not.toBeNull();
+});
+
+test("a reply in an encrypted chat is kept from the helper's answer, before its echo arrives", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("e1", [ANNA], { encrypted: true });
+  fake.arrives("e1", ANNA, "Hi");
+  await engine.job("messages-messenger/sync");
+  fake.noEchoes();
+  const { conversation } = await chat("e1");
+
+  await engine.run("messages/send", { conversation: conversation?.id ?? "", text: "Hello" });
+  await engine.job("messages-messenger/send");
+
+  const messages = (await chat("e1")).messages;
+  expect(messages.map(({ text, pending }) => ({ text, pending }))).toEqual([
+    { text: "Hi", pending: null },
+    { text: "Hello", pending: null },
+  ]);
+});
+
+test("asking for earlier messages twice goes on from where the first answer ended", async () => {
+  const { engine, fake } = await setUp();
+  fake.chat("t1", [ANNA]);
+  for (let minute = 500; minute > 0; minute -= 1) fake.said("t1", ANNA, `Line ${minute}`, minute);
+  const older = async (before: string) =>
+    (await engine.run("messages-messenger/older", {
+      account: "messenger",
+      conversation: "t1",
+      before,
+      limit: 150,
+    })) as { messages: { text: string; sent: string }[] };
+
+  const first = await older(new Date(Date.now() - 100.5 * 60_000).toISOString());
+  const asked = fake.asked.length;
+  const second = await older(first.messages.at(-1)?.sent ?? "");
+
+  expect(first.messages[0]?.text).toBe("Line 101");
+  expect(second.messages[0]?.text).toBe("Line 251");
+  expect(second.messages.at(-1)?.text).toBe("Line 400");
+  expect(fake.asked.slice(asked).every(({ params }) => params.before !== undefined)).toBe(true);
+});
+
+test("the person's own reaction in a chat's history is theirs", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.said("t1", ANNA, "Cake!", 10, { reactions: [{ sender_id: ME.id, emoji: "😍" }] });
+  fake.said("t1", ME, "On my way", 5);
+
+  await engine.job("messages-messenger/sync");
+
+  const [cake] = (await chat("t1")).messages;
+  expect(cake?.reactions).toEqual([{ from: null, from_me: true, kind: "😍" }]);
+});
+
+test("a Messenger file can't be opened on the Mac, and says to open the chat in Messenger", async () => {
+  const { engine } = await setUp();
+
+  await expect(
+    engine.run("messages-messenger/openAttachment", { account: "messenger", id: "r1" }),
+  ).rejects.toThrow("open the chat there");
+});

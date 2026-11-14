@@ -20,10 +20,12 @@ Tell the person, in your own words, and go on only on their yes:
 
 ## Add it
 
-1. Pin this recipe to one commit and copy that commit's `messages-messenger/` folder to `modules/messages-messenger/` in the app home.
-2. Read every file in it. Check that each `sha256` under `helperPrograms` in `module.json` matches the line for that file in the release's `checksums.txt`, at `https://github.com/marcus13371337/messenger-helper/releases/download/v<version>/checksums.txt`.
-3. Run `empty check messages-messenger`. It type-checks the module and runs its tests on this app.
-4. Add the connection to `connectors.json`:
+1. Pin this recipe to one commit and put that commit's files in `recipes/empty-recipe-messenger/` in the app home, not in `modules/`.
+2. Read every file in `messages-messenger/`. Check that each `sha256` under `helperPrograms` in `module.json` matches the line for that file in the release's `checksums.txt`, at `https://github.com/marcus13371337/messenger-helper/releases/download/v<version>/checksums.txt`.
+3. Run `empty check recipes/empty-recipe-messenger/messages-messenger`. It type-checks the module and runs its tests on this app.
+4. Tell the person about the risk (above) and who publishes this, and go on only on their yes.
+5. Copy `messages-messenger/` to `modules/messages-messenger/`, and add a last line to its `README.md`: `From marcus13371337/empty-recipe-messenger at <commit>.`
+6. Add the connection to `connectors.json`:
 
    ```json
    "messenger": {
@@ -34,10 +36,10 @@ Tell the person, in your own words, and go on only on their yes:
    }
    ```
 
-5. `empty helper-program add messages-messenger/messenger`. The person sees what the helper is, where it comes from and what it may do, and says yes or no.
-6. Add `messages` and `messages-messenger` to `on` in `modules.json`.
-7. Sign the person in through the app's sign-in window for the helper (empty-app#363 says how). They sign in at messenger.com as they normally do, with any two-step code.
-8. `empty run messages-messenger --job sync` fetches at once. After that, new messages come in as they arrive, and everything is synced again every 5 minutes.
+7. `empty helper-program add messages-messenger/messenger`. The person sees what the helper is, where it comes from and what it may do, and says yes or no.
+8. Add `messages` to `on` in `modules.json`, if it is not there.
+9. Sign the person in through the app's sign-in window for the helper (empty-app#363 says how). They sign in at messenger.com as they normally do, with any two-step code.
+10. `empty run messages-messenger --job sync` fetches at once. After that, new messages come in as they arrive, and everything is synced again every 5 minutes.
 
 ## What the person gets
 
@@ -51,7 +53,9 @@ Not there: starting a new chat, edits, deleted messages, polls, calls, and searc
 ## Known limits
 
 - Messages in encrypted chats reach the app only as they arrive. The connection holds them until the next sync keeps them, which is at once. If the connection stops in between, those few are lost.
-- A file in an unencrypted chat stays fetchable for a while. After that, the person opens it in Messenger: Open in Messenger opens the chat on messenger.com.
+- Pictures show in the chat. Other files can't be opened on the Mac from here: the person opens the chat in Messenger, which opens it on messenger.com.
+- A file in an unencrypted chat stays fetchable for a while; after that, the same goes for pictures.
+- The person's own reactions are marked as theirs once the app has seen one of their messages in that chat.
 
 ## When Messenger signs them out
 
@@ -65,13 +69,14 @@ The helper follows Meta's changes, so new releases come often. To move to one:
 2. Change `version`, and each platform's `url` and `sha256`, in `module.json` under `helperPrograms`. Take the checksums from that release's `checksums.txt`, never from a file you downloaded yourself.
 3. `empty check messages-messenger`, then `empty helper-program add messages-messenger/messenger`. The old version keeps running until the person says yes.
 
-To update the recipe itself, read what changed since the pinned commit, tell the person, and copy the module again.
+To update the recipe itself, read what changed between the commit named in `modules/messages-messenger/README.md` and the newest, tell the person, check it in `recipes/` as above, and copy the module again with the new commit.
 
 ## Remove it all
 
 1. `empty helper-program remove messages-messenger/messenger`. It deletes the helper's files and its login.
-2. Take `messages-messenger` out of `on` in `modules.json`, the `messenger` connection out of `connectors.json`, and delete `modules/messages-messenger/`. Messages marks the account gone.
-3. Tell the person they can log the device out in Messenger, under Settings, Security, Where you're logged in.
+2. Take the `messenger` connection out of `connectors.json`, then `empty run messages-messenger --job sync`: with the connection gone, Messages marks the account gone.
+3. Delete `modules/messages-messenger/` and `recipes/empty-recipe-messenger/`.
+4. Tell the person they can log the device out in Messenger, under Settings, Security, Where you're logged in.
 
 ## For the publisher: check against real Meta
 

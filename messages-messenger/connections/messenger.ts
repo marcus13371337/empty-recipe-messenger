@@ -17,6 +17,8 @@ import {
 
 const CONVERSATIONS = 100;
 const KNOWN = 5_000;
+const PAGE = 100;
+const PAGES = 20;
 
 type Waiting = { seq: number; kind: "messages" | "changed" | "conversations"; value: JsonValue };
 
@@ -26,18 +28,22 @@ export function messengerConnection(): CodeConnection {
   const people = new People();
   const encrypted = new Set<string>();
   const groups = new Set<string>();
+  const cursors = new Map<string, { oldest: string; next: string | null }>();
   const known = new Map<string, Message>();
   let waiting: Waiting[] = [];
   let seq = 0;
   let state: { state: string; message: string | null } | null = null;
 
-  const remember = (message: Message) => {
+  const remember = (given: Message) => {
+    const read = given.read ?? known.get(given.id)?.read;
+    const message = read ? { ...given, read } : given;
     known.delete(message.id);
     known.set(message.id, message);
     if (known.size > KNOWN) {
       const oldest = known.keys().next().value;
       if (oldest !== undefined) known.delete(oldest);
     }
+    return message;
   };
   const wait = (kind: Waiting["kind"], value: Message | Listed) => {
     seq += 1;
@@ -119,19 +125,68 @@ export function messengerConnection(): CodeConnection {
     };
   };
 
-  const history = async (helper: HelperProgram, args: JsonObject) => {
-    const conversation = textOf(args.conversation) ?? "";
-    if (encrypted.has(conversation)) return { messages: [], next: null };
+  const mapped = (raws: JsonValue[]) => {
+    people.learnMe(raws);
+    return raws.flatMap((raw) => {
+      const message = messageOf(raw, people);
+      return message ? [remember(message)] : [];
+    });
+  };
+
+  const page = async (helper: HelperProgram, conversation: string, before: string | null) => {
     const answer = objectOf(
       await helper.request("messages", {
         conversation_id: conversation,
-        limit: numberOf(args.limit) ?? 50,
-        ...(textOf(args.before) !== null && { before: textOf(args.before) }),
+        limit: PAGE,
+        ...(before !== null && { before }),
       }),
     );
-    const messages = listOf(answer.messages).flatMap((raw) => messageOf(raw, people) ?? []);
-    for (const message of messages) remember(message);
-    return { messages, next: textOf(answer.next) };
+    return { messages: mapped(listOf(answer.messages)), next: textOf(answer.next) };
+  };
+
+  const since = async (helper: HelperProgram, conversation: string, after: number) => {
+    if (encrypted.has(conversation)) return [];
+    const found: Message[] = [];
+    let next: string | null = null;
+    for (let fetched = 0; fetched < PAGES; fetched += 1) {
+      const answer = await page(helper, conversation, next);
+      found.push(...answer.messages);
+      next = answer.next;
+      if (next === null || answer.messages.some(({ sent }) => Date.parse(sent) <= after)) break;
+    }
+    return found.filter(({ sent }) => Date.parse(sent) > after);
+  };
+
+  const earlier = async (
+    helper: HelperProgram,
+    conversation: string,
+    before: number,
+    limit: number,
+  ) => {
+    const older = (messages: Iterable<Message>) =>
+      [...messages].filter(
+        (message) => message.conversation === conversation && Date.parse(message.sent) < before,
+      );
+    const cursor = cursors.get(conversation);
+    let next = cursor && Date.parse(cursor.oldest) <= before ? cursor.next : null;
+    const found = new Map(
+      older(cursor && next !== null ? known.values() : []).map((m) => [m.id, m]),
+    );
+    for (
+      let fetched = 0;
+      fetched < PAGES && found.size < limit && !encrypted.has(conversation);
+      fetched += 1
+    ) {
+      const answer = await page(helper, conversation, next);
+      for (const message of older(answer.messages)) found.set(message.id, message);
+      const oldest = answer.messages.map(({ sent }) => sent).sort()[0];
+      if (oldest) cursors.set(conversation, { oldest, next: answer.next });
+      next = answer.next;
+      if (next === null) break;
+    }
+    return [...found.values()]
+      .sort((a, b) => Date.parse(b.sent) - Date.parse(a.sent))
+      .slice(0, limit);
   };
 
   const send = async (helper: HelperProgram, args: JsonObject) => {
@@ -154,8 +209,8 @@ export function messengerConnection(): CodeConnection {
           ...(files.length > 0 && { files }),
         }),
       );
-      const messages = listOf(answer.messages).flatMap((raw) => messageOf(raw, people) ?? []);
-      for (const message of messages) remember(message);
+      const messages = mapped(listOf(answer.messages));
+      for (const message of messages) wait("messages", message);
       const problem = objectOf(answer.problem);
       if (textOf(problem.message)) {
         throw new Error(`Only part of it went out: ${textOf(problem.message)}`);
@@ -206,16 +261,39 @@ export function messengerConnection(): CodeConnection {
           };
         },
       },
-      history: {
+      since: {
         description:
-          "One chat's messages, newest page first. An end-to-end encrypted chat has none here.",
+          "One chat's messages sent after a time, oldest first. An end-to-end encrypted chat has none here.",
+        does: "read",
+        input: {
+          type: "object",
+          properties: { conversation: STRING, after: STRING },
+          required: ["conversation", "after"],
+        },
+        run: async (args, { helperProgram }) => ({
+          messages: await since(
+            helperProgram(HELPER),
+            textOf(args.conversation) ?? "",
+            Date.parse(textOf(args.after) ?? ""),
+          ),
+        }),
+      },
+      earlier: {
+        description: "One chat's messages sent before a time, newest first",
         does: "read",
         input: {
           type: "object",
           properties: { conversation: STRING, before: STRING, limit: { type: "integer" } },
-          required: ["conversation"],
+          required: ["conversation", "before", "limit"],
         },
-        run: (args, { helperProgram }) => history(helperProgram(HELPER), args),
+        run: async (args, { helperProgram }) => ({
+          messages: await earlier(
+            helperProgram(HELPER),
+            textOf(args.conversation) ?? "",
+            Date.parse(textOf(args.before) ?? ""),
+            numberOf(args.limit) ?? 50,
+          ),
+        }),
       },
       take_events: {
         description: "What arrived since the last drop_events: messages, changes and chats",

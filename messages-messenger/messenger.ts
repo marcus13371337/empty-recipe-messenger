@@ -41,6 +41,14 @@ export class People {
     if (name) this.names.set(id, name);
   }
 
+  learnMe(raws: JsonValue[]) {
+    for (const raw of raws) {
+      const { from_me, sender_id } = objectOf(raw);
+      const sender = textOf(sender_id);
+      if (from_me === true && sender !== null) this.me = sender;
+    }
+  }
+
   person(id: string): Person {
     return { handle: id, name: this.names.get(id) ?? null };
   }

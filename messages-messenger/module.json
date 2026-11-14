@@ -192,7 +192,7 @@
     },
     {
       "function": "openConversation",
-      "title": "Open a chat in Messages",
+      "title": "Open a chat in Messenger",
       "input": {
         "type": "object",
         "properties": {

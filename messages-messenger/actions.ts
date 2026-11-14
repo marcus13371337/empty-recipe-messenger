@@ -1,32 +1,15 @@
-import type { ActionArgs, JobContext, JsonValue } from "@empty/module-sdk";
-import { listOf, objectOf, textOf } from "./json";
+import type { ActionArgs, JobContext } from "@empty/module-sdk";
+import { listOf, objectOf } from "./json";
 import { CONNECTION } from "./messenger";
-
-const PAGES = 10;
-
-const sentAt = (message: JsonValue) => Date.parse(textOf(objectOf(message).sent) ?? "");
 
 export async function older(
   context: JobContext,
   { conversation, before, limit }: ActionArgs<"messages-messenger/older">,
 ) {
-  const found: JsonValue[] = [];
-  let next: string | null = null;
-  for (let page = 0; page < PAGES && found.length < limit; page += 1) {
-    const answer = objectOf(
-      await context.connectors.call(CONNECTION, "history", {
-        conversation,
-        limit: 200,
-        ...(next !== null && { before: next }),
-      }),
-    );
-    found.push(
-      ...listOf(answer.messages).filter((message) => sentAt(message) < Date.parse(before)),
-    );
-    next = textOf(answer.next);
-    if (next === null) break;
-  }
-  return { messages: found.sort((a, b) => sentAt(b) - sentAt(a)).slice(0, limit) };
+  const answer = objectOf(
+    await context.connectors.call(CONNECTION, "earlier", { conversation, before, limit }),
+  );
+  return { messages: listOf(answer.messages) };
 }
 
 export async function search() {
@@ -40,12 +23,14 @@ export async function attachment(
   return context.connectors.call(CONNECTION, "attachment", { id });
 }
 
-export async function openAttachment() {
-  return { opened: false };
+const ONLY_IN_MESSENGER = "Messenger files open in Messenger: open the chat there.";
+
+export async function openAttachment(): Promise<never> {
+  throw new Error(ONLY_IN_MESSENGER);
 }
 
-export async function showAttachment() {
-  return { shown: false };
+export async function showAttachment(): Promise<never> {
+  throw new Error(ONLY_IN_MESSENGER);
 }
 
 export async function openConversation(
