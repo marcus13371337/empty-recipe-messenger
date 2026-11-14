@@ -90,7 +90,9 @@ export function fakeHelper() {
       const sent = message(chat, ME, typeof text === "string" ? text : "", 0, { attachments });
       history.get(chat)?.push(sent);
       if (echoes) emit("message", sent);
-      return { messages: [sent] };
+      if (chats.get(chat)?.encrypted) return { messages: [sent] };
+      const withoutRefs = attachments.map(({ ref: _ref, ...attachment }) => attachment);
+      return { messages: [{ ...sent, attachments: withoutRefs }] };
     },
     attachment: ({ ref }) => {
       const path = join(folder, `${String(ref)}.png`);

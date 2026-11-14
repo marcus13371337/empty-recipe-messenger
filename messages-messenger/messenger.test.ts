@@ -99,6 +99,7 @@ test("a reply with a picture goes out through the helper, which gets the file in
   expect(readdirSync(join(fake.folder, "outgoing"))).toEqual([]);
   const messages = (await chat("t1")).messages;
   expect(messages.at(-1)).toMatchObject({ text: "Here", from_me: true, pending: null });
+  expect(messages.at(-1)?.attachments[0]?.id).toBe("ref-0");
 });
 
 test("an attachment is fetched from the helper, and its file in the helper's folder is removed", async () => {

@@ -209,8 +209,11 @@ export function messengerConnection(): CodeConnection {
           ...(files.length > 0 && { files }),
         }),
       );
-      const messages = mapped(listOf(answer.messages));
-      for (const message of messages) wait("messages", message);
+      const answered = listOf(answer.messages);
+      const echoed = answered.flatMap((raw) => known.get(textOf(objectOf(raw).id) ?? "") ?? []);
+      const fresh = mapped(answered.filter((raw) => !known.has(textOf(objectOf(raw).id) ?? "")));
+      for (const message of fresh) wait("messages", message);
+      const messages = [...echoed, ...fresh];
       const problem = objectOf(answer.problem);
       if (textOf(problem.message)) {
         throw new Error(`Only part of it went out: ${textOf(problem.message)}`);
