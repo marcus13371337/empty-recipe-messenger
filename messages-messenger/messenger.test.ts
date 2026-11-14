@@ -257,3 +257,15 @@ test("a Messenger file can't be opened on the Mac, and says to open the chat in 
     engine.run("messages-messenger/openAttachment", { account: "messenger", id: "r1" }),
   ).rejects.toThrow("open the chat there");
 });
+
+test("a sync with the Messenger connection gone marks the account gone", async () => {
+  const { engine, fake } = await setUp();
+  fake.chat("t1", [ANNA]);
+  await engine.job("messages-messenger/sync");
+
+  engine.disconnect("messenger");
+  await engine.job("messages-messenger/sync");
+
+  const [account] = await engine.collection("messages/accounts").query({});
+  expect(account?.gone_at).not.toBeNull();
+});
