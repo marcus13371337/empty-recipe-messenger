@@ -2,7 +2,7 @@
   "id": "messages-messenger",
   "name": "Messenger",
   "description": "Brings the person's Facebook Messenger chats into the messages module and sends through it.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "uses": [
     "messages"
   ],
@@ -15,6 +15,14 @@
       "for": "Keeps your Messenger account connected, so your chats come into Messages and your replies go out.",
       "version": "0.1.0",
       "args": [],
+      "signIn": {
+        "url": "https://www.messenger.com/",
+        "cookies": [
+          "c_user",
+          "xs",
+          "datr"
+        ]
+      },
       "platforms": {
         "darwin-arm64": {
           "url": "https://github.com/marcus13371337/messenger-helper/releases/download/v0.1.0/messenger-helper-darwin-arm64",
