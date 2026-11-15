@@ -260,7 +260,7 @@ test("a Messenger file can't be opened on the Mac, and says to open the chat in 
   ).rejects.toThrow("open the chat there");
 });
 
-test("a chat opens in Messenger on facebook.com, since messenger.com is closing", async () => {
+test("a chat opens in Messenger at facebook.com/messages", async () => {
   const opened: string[] = [];
 
   await openConversation(
