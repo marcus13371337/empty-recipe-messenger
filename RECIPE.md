@@ -10,7 +10,7 @@ Tell the person, in your own words, and go on only on their yes:
 
 - Meta offers no way in for personal accounts. The helper is an unofficial client, which is against Meta's terms. Meta may flag or lock an account that uses one. The risk is theirs.
 - The app signs in through Facebook's own page, facebook.com, in a window it opens. The login is their whole Facebook login, not only Messenger's. The helper then holds that login, kept encrypted with its key in the keychain. Neither you nor the module ever see it.
-- The helper shows up as a new device in Messenger's list of logged-in devices.
+- The helper shows up as a new device in Facebook's list of where they're logged in.
 - Older end-to-end encrypted chats start empty: Meta does not give their history to a new device. From then on, the app keeps what arrives.
 
 ## Needs
@@ -61,7 +61,7 @@ Not there: starting a new chat, edits, deleted messages, polls, calls, and searc
 
 When Meta ends the login, the app forgets it and asks the person once to sign in again, which opens the same window. The Messenger account in Messages says why, in the helper's words. If they said no, Settings → Connections shows the helper as signed out with a Sign in button; offer to open the window with `empty helper-program sign-in messages-messenger/messenger`.
 
-Each sign-in after Meta ended one is a new device in Messenger's list of logged-in devices. Chats and messages the app already keeps stay; encrypted chats carry on only with messages that arrive after it.
+Each sign-in after Meta ended one is a new device in Facebook's list of where they're logged in. Chats and messages the app already keeps stay; encrypted chats carry on only with messages that arrive after it.
 
 When Meta wants a security check instead, the account in Messages says so, but the app does not ask, and the helper stays `running` without a login. The person finishes the check at facebook.com in their own browser. Then `empty helper-program stop messages-messenger/messenger` and `empty helper-program start messages-messenger/messenger` make the helper log in again with the login it keeps. If Meta no longer takes that login, the app asks the person to sign in again, as above.
 
@@ -80,7 +80,7 @@ To update the recipe itself, read what changed between the commit named in `modu
 1. `empty helper-program remove messages-messenger/messenger`. It deletes the helper's files and its login.
 2. Take the `messenger` connection out of `connectors.json`, then `empty run messages-messenger --job sync`: with the connection gone, Messages marks the account gone.
 3. Delete `modules/messages-messenger/` and `recipes/empty-recipe-messenger/`.
-4. Tell the person they can log the device out in Messenger, under Settings, Security, Where you're logged in.
+4. Tell the person they can log the device out at facebook.com, under Accounts Center, Password and security, Where you're logged in.
 
 ## For the publisher: check against real Meta
 
