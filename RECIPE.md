@@ -9,7 +9,7 @@ Published by [marcus13371337](https://github.com/marcus13371337), who also publi
 Tell the person, in your own words, and go on only on their yes:
 
 - Meta offers no way in for personal accounts. The helper is an unofficial client, which is against Meta's terms. Meta may flag or lock an account that uses one. The risk is theirs.
-- The app signs in through Messenger's own page in a window it opens. The helper then holds that login, kept encrypted with its key in the keychain. Neither you nor the module ever see it.
+- The app signs in through Facebook's own page, facebook.com, in a window it opens. The login is their whole Facebook login, not only Messenger's. The helper then holds that login, kept encrypted with its key in the keychain. Neither you nor the module ever see it.
 - The helper shows up as a new device in Messenger's list of logged-in devices.
 - Older end-to-end encrypted chats start empty: Meta does not give their history to a new device. From then on, the app keeps what arrives.
 
@@ -36,7 +36,7 @@ Tell the person, in your own words, and go on only on their yes:
    }
    ```
 
-7. `empty helper-program add messages-messenger/messenger`. The person sees what the helper is, where it comes from and what it may do, and says yes or no. On their yes, the app opens its sign-in window at messenger.com. They sign in there as they normally do, with any two-step code. The window closes by itself once they are signed in, and the app hands the login to the helper. You never see it, and never ask them to copy cookies or a password.
+7. `empty helper-program add messages-messenger/messenger`. The person sees what the helper is, where it comes from and what it may do, and says yes or no. On their yes, the app opens its sign-in window at facebook.com. They sign in there as they normally do, with any two-step code. The window closes by itself once they are signed in, and the app hands the login to the helper. You never see it, and never ask them to copy cookies or a password.
 8. Add `messages` to `on` in `modules.json`, if it is not there.
 9. Wait until `empty status` shows the helper as `running`, not `starting` or `signed_out`. If it shows `failed`, read its error and fix that before going on. If the person closed the window, or left it until it closed by itself after 15 minutes, `empty helper-program sign-in messages-messenger/messenger` opens it again; so does Sign in under Settings → Connections.
 10. `empty run messages-messenger --job sync` fetches at once. After that, new messages come in as they arrive, and everything is synced again every 5 minutes.
@@ -53,7 +53,7 @@ Not there: starting a new chat, edits, deleted messages, polls, calls, and searc
 ## Known limits
 
 - Messages in encrypted chats reach the app only as they arrive. The connection holds them until the next sync keeps them, which is at once. If the connection stops in between, those few are lost.
-- Pictures show in the chat. Other files can't be opened on the Mac from here: the person opens the chat in Messenger, which opens it on messenger.com.
+- Pictures show in the chat. Other files can't be opened on the Mac from here: the person opens the chat in Messenger, which opens it on facebook.com.
 - A file in an unencrypted chat stays fetchable for a while; after that, the same goes for pictures.
 - The person's own reactions are marked as theirs once the app has seen one of their messages in that chat.
 
@@ -63,7 +63,7 @@ When Meta ends the login, the app forgets it and asks the person once to sign in
 
 Each sign-in after Meta ended one is a new device in Messenger's list of logged-in devices. Chats and messages the app already keeps stay; encrypted chats carry on only with messages that arrive after it.
 
-When Meta wants a security check instead, the account in Messages says so, but the app does not ask, and the helper stays `running` without a login. The person finishes the check at messenger.com in their own browser. Then `empty helper-program stop messages-messenger/messenger` and `empty helper-program start messages-messenger/messenger` make the helper log in again with the login it keeps. If Meta no longer takes that login, the app asks the person to sign in again, as above.
+When Meta wants a security check instead, the account in Messages says so, but the app does not ask, and the helper stays `running` without a login. The person finishes the check at facebook.com in their own browser. Then `empty helper-program stop messages-messenger/messenger` and `empty helper-program start messages-messenger/messenger` make the helper log in again with the login it keeps. If Meta no longer takes that login, the app asks the person to sign in again, as above.
 
 ## Update the helper
 

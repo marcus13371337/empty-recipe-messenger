@@ -2,7 +2,7 @@
   "id": "messages-messenger",
   "name": "Messenger",
   "description": "Brings the person's Facebook Messenger chats into the messages module and sends through it.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "uses": [
     "messages"
   ],
@@ -13,10 +13,10 @@
     "messenger": {
       "title": "Messenger helper",
       "for": "Keeps your Messenger account connected, so your chats come into Messages and your replies go out.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "args": [],
       "signIn": {
-        "url": "https://www.messenger.com/",
+        "url": "https://www.facebook.com/",
         "cookies": [
           "c_user",
           "xs",
@@ -25,12 +25,12 @@
       },
       "platforms": {
         "darwin-arm64": {
-          "url": "https://github.com/marcus13371337/messenger-helper/releases/download/v0.1.0/messenger-helper-darwin-arm64",
-          "sha256": "102df96899d1705505fff8610e32811d031a00b2323e9ae4dbafe56dde57a6a9"
+          "url": "https://github.com/marcus13371337/messenger-helper/releases/download/v0.2.0/messenger-helper-darwin-arm64",
+          "sha256": "6735464ac52d9c9cc1f400bfe086243bc804cca59bd0c1e2d760e2d389aa0db0"
         },
         "darwin-x64": {
-          "url": "https://github.com/marcus13371337/messenger-helper/releases/download/v0.1.0/messenger-helper-darwin-x64",
-          "sha256": "683f13f630322f24d4ffe16509571c04e877b00f99e3fabcf4facfa3d00097c7"
+          "url": "https://github.com/marcus13371337/messenger-helper/releases/download/v0.2.0/messenger-helper-darwin-x64",
+          "sha256": "6d69171cf7b7e8402fbf0eeb8c4cd1ad0768bb4e821dfcfe033225818c276d88"
         }
       }
     }
