@@ -34,9 +34,9 @@ export async function showAttachment(): Promise<never> {
 }
 
 export async function openConversation(
-  context: JobContext,
+  context: Pick<JobContext, "openLink">,
   { conversation }: ActionArgs<"messages-messenger/openConversation">,
 ) {
-  await context.openLink(`https://www.messenger.com/t/${encodeURIComponent(conversation)}`);
+  await context.openLink(`https://www.facebook.com/messages/t/${encodeURIComponent(conversation)}`);
   return { opened: true };
 }

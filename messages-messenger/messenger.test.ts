@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@empty/module-sdk/testing";
+import { openConversation } from "./actions";
 import { ANNA, BO, ME, setUp } from "./fakeHelper.test-harness";
 import { UNSUPPORTED } from "./messenger";
 
@@ -257,6 +258,17 @@ test("a Messenger file can't be opened on the Mac, and says to open the chat in 
   await expect(
     engine.run("messages-messenger/openAttachment", { account: "messenger", id: "r1" }),
   ).rejects.toThrow("open the chat there");
+});
+
+test("a chat opens in Messenger at facebook.com/messages", async () => {
+  const opened: string[] = [];
+
+  await openConversation(
+    { openLink: async (url) => void opened.push(url) },
+    { account: "messenger", conversation: "200" },
+  );
+
+  expect(opened).toEqual(["https://www.facebook.com/messages/t/200"]);
 });
 
 test("a sync with the Messenger connection gone marks the account gone", async () => {
