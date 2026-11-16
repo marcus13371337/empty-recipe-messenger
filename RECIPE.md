@@ -15,7 +15,7 @@ Tell the person, in your own words, and go on only on their yes:
 
 ## Needs
 
-- Empty 0.9.1 or newer: helper programs, a module's tests that run the modules it feeds, and the sign-in window for helper programs ([empty-app#363](https://github.com/Ahl-berg-Innovation-AB/empty-app/issues/363)). `empty check` refuses the module on an older app.
+- Empty 0.9.8 or newer: helper programs, a module's tests that run the modules it feeds, the sign-in window for helper programs ([empty-app#363](https://github.com/Ahl-berg-Innovation-AB/empty-app/issues/363)), and a reason code on a failed sync or send. `empty check` refuses the module on an older app.
 - A Mac with Apple silicon or Intel.
 
 ## Add it

@@ -2,6 +2,7 @@ name: check
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
   schedule:
@@ -16,7 +17,7 @@ jobs:
         run: curl -fsSL https://empty.rcusahlberg.se/download/Empty-mac.tar.gz | tar xz
       - name: Check the module in a fresh app home
         run: |
-          engine="$PWD/Empty.app/Contents/MacOS/empty-engine"
+          engine="$PWD/Empty.app/Contents/MacOS/Empty"
           home="$RUNNER_TEMP/home"
           mkdir -p "$home/modules"
           cp -R messages-messenger "$home/modules/"

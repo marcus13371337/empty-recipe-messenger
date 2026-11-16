@@ -1,4 +1,4 @@
-import type { JobContext, JsonValue } from "@empty/module-sdk";
+import type { FailedBecause, JobContext, JsonValue } from "@empty/module-sdk";
 import { listOf, numberOf, objectOf, reasonOf, textOf } from "./json";
 import {
   ACCOUNT,
@@ -11,7 +11,7 @@ import {
 
 const KEPT_DAYS = 30;
 const OVERLAP_MS = 5 * 60_000;
-const SKIPPED_OUTAGES = ["asleep", "timeout"];
+const SKIPPED_OUTAGES: readonly FailedBecause[] = ["asleep", "timeout"];
 
 const isHere = async (context: JobContext) =>
   (await context.connectors.list()).some(({ name }) => name === CONNECTION);
@@ -98,12 +98,18 @@ export async function syncAccount(context: JobContext, now = new Date()) {
     await context.connectors.call(CONNECTION, "drop_events", { upTo: numberOf(waiting.upTo) ?? 0 });
     return synced;
   } catch (error) {
-    if (!SKIPPED_OUTAGES.includes(context.connectors.unavailableKind(error) ?? "")) {
+    const reason = context.connectors.failedBecause(error);
+    if (reason === null || !SKIPPED_OUTAGES.includes(reason)) {
       const state = objectOf(
         await context.connectors.call(CONNECTION, "state", {}).catch(() => null),
       );
       const problem = textOf(state.message) ?? reasonOf(error);
-      await context.action("messages/syncFailed", { source, account: ACCOUNT, problem });
+      await context.action("messages/syncFailed", {
+        source,
+        account: ACCOUNT,
+        problem,
+        failed_because: reason,
+      });
     }
     throw error;
   }
@@ -160,7 +166,11 @@ export async function send(context: JobContext) {
         }),
       );
     } catch (error) {
-      await context.action("messages/sent", { source, id: due.id, problem: reasonOf(error) });
+      await context.action("messages/sent", {
+        source,
+        id: due.id,
+        ...context.connectors.failure(error),
+      });
       continue;
     }
     await syncAccount(context).catch(() => null);

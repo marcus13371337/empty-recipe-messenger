@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@empty/module-sdk/testing";
+import { expect, failureFrom, test } from "@empty/module-sdk/testing";
 import { openConversation } from "./actions";
 import { ANNA, BO, ME, setUp } from "./fakeHelper.test-harness";
 import { UNSUPPORTED } from "./messenger";
@@ -64,7 +64,7 @@ test("a reaction and a read receipt change a message already kept", async () => 
   await engine.job("messages-messenger/sync");
 
   const [kept] = (await chat("e1")).messages;
-  expect(kept?.reactions).toEqual([
+  expect(kept?.reactions).toMatchObject([
     { from: { handle: ANNA.id, name: "Anna" }, from_me: false, kind: "❤️" },
   ]);
   expect(kept?.read).not.toBeNull();
@@ -125,6 +125,20 @@ test("an attachment is fetched from the helper, and its file in the helper's fol
   expect(existsSync(join(fake.folder, "r1.png"))).toBe(false);
 });
 
+test("a reply the person said no to is kept as refused by them", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  await engine.job("messages-messenger/sync");
+  const { conversation } = await chat("t1");
+  engine.refuse("messenger", "send", failureFrom("You said no.", "refused_by_person"));
+
+  await engine.run("messages/send", { conversation: conversation?.id ?? "", text: "Here" });
+  await engine.job("messages-messenger/send");
+
+  const reply = (await chat("t1")).messages.find(({ text }) => text === "Here");
+  expect(reply?.failed_because).toBe("refused_by_person");
+});
+
 test("a sync after Meta ended the login says why in the helper's own words", async () => {
   const { engine, fake } = await setUp();
   fake.chat("t1", [ANNA]);
@@ -137,6 +151,29 @@ test("a sync after Meta ended the login says why in the helper's own words", asy
   expect(account?.problem).toBe(
     "Messenger signed you out. Sign in again to keep your chats coming.",
   );
+});
+
+test("a failed sync keeps the reason's code beside its words", async () => {
+  const { engine, fake } = await setUp();
+  fake.chat("t1", [ANNA]);
+  engine.refuse("messenger", "conversations", failureFrom("Sign in again.", "needs_login"));
+
+  await expect(engine.job("messages-messenger/sync")).rejects.toThrow();
+
+  const [account] = await engine.collection("messages/accounts").query({});
+  expect(account?.failed_because).toBe("needs_login");
+});
+
+test("a sync that only timed out leaves the account without a problem", async () => {
+  const { engine, fake } = await setUp();
+  fake.chat("t1", [ANNA]);
+  await engine.job("messages-messenger/sync");
+  engine.refuse("messenger", "conversations", failureFrom("Too slow.", "timeout"));
+
+  await expect(engine.job("messages-messenger/sync")).rejects.toThrow();
+
+  const [account] = await engine.collection("messages/accounts").query({});
+  expect(account?.problem).toBeNull();
 });
 
 test("earlier messages come from the helper's history, older than the ones asked before", async () => {

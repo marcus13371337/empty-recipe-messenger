@@ -173,7 +173,12 @@ export async function setUp() {
   let changes = 0;
   await connection.watch?.(() => (changes += 1), { ...context, signal: stop.signal });
   const engine = testEngine({
-    modules: [await appModule("messages"), await appModule("inbox"), { manifest, actions, jobs }],
+    modules: [
+      await appModule("messages"),
+      await appModule("inbox"),
+      await appModule("people"),
+      { manifest, actions, jobs },
+    ],
     connections: [{ name: "messenger", kind: "stdio" }],
     connector: async (_server, tool, args) => {
       const found = connection.tools[tool];
