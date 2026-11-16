@@ -14,7 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download the newest Empty
-        run: curl -fsSL https://empty.rcusahlberg.se/download/Empty-mac.tar.gz | tar xz
+        run: |
+          url="$(curl -fsSL https://empty.rcusahlberg.se/download/latest.json | jq -r '.platforms["darwin-aarch64"].url')"
+          curl -fsSL "$url" | tar xz
       - name: Check the module in a fresh app home
         run: |
           engine="$PWD/Empty.app/Contents/MacOS/Empty"
