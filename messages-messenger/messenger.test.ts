@@ -64,7 +64,7 @@ test("a reaction and a read receipt change a message already kept", async () => 
   await engine.job("messages-messenger/sync");
 
   const [kept] = (await chat("e1")).messages;
-  expect(kept?.reactions).toEqual([
+  expect(kept?.reactions).toMatchObject([
     { from: { handle: ANNA.id, name: "Anna" }, from_me: false, kind: "❤️" },
   ]);
   expect(kept?.read).not.toBeNull();

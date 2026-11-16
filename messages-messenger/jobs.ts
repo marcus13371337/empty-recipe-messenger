@@ -98,12 +98,18 @@ export async function syncAccount(context: JobContext, now = new Date()) {
     await context.connectors.call(CONNECTION, "drop_events", { upTo: numberOf(waiting.upTo) ?? 0 });
     return synced;
   } catch (error) {
-    if (!SKIPPED_OUTAGES.includes(context.connectors.unavailableKind(error) ?? "")) {
+    const failed_because = context.connectors.failedBecause(error);
+    if (!SKIPPED_OUTAGES.includes(failed_because ?? "")) {
       const state = objectOf(
         await context.connectors.call(CONNECTION, "state", {}).catch(() => null),
       );
       const problem = textOf(state.message) ?? reasonOf(error);
-      await context.action("messages/syncFailed", { source, account: ACCOUNT, problem });
+      await context.action("messages/syncFailed", {
+        source,
+        account: ACCOUNT,
+        problem,
+        failed_because,
+      });
     }
     throw error;
   }
