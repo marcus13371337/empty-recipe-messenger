@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@empty/module-sdk/testing";
+import { expect, failureFrom, test } from "@empty/module-sdk/testing";
 import { openConversation } from "./actions";
 import { ANNA, BO, ME, setUp } from "./fakeHelper.test-harness";
 import { UNSUPPORTED } from "./messenger";
@@ -123,6 +123,20 @@ test("an attachment is fetched from the helper, and its file in the helper's fol
     file: { base64: Buffer.from("a picture").toString("base64"), mediaType: "image/png" },
   });
   expect(existsSync(join(fake.folder, "r1.png"))).toBe(false);
+});
+
+test("a reply the person said no to is kept as refused by them", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  await engine.job("messages-messenger/sync");
+  const { conversation } = await chat("t1");
+  engine.refuse("messenger", "send", failureFrom("You said no.", "refused_by_person"));
+
+  await engine.run("messages/send", { conversation: conversation?.id ?? "", text: "Here" });
+  await engine.job("messages-messenger/send");
+
+  const reply = (await chat("t1")).messages.find(({ text }) => text === "Here");
+  expect(reply?.failed_because).toBe("refused_by_person");
 });
 
 test("a sync after Meta ended the login says why in the helper's own words", async () => {

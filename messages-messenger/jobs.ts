@@ -166,7 +166,12 @@ export async function send(context: JobContext) {
         }),
       );
     } catch (error) {
-      await context.action("messages/sent", { source, id: due.id, problem: reasonOf(error) });
+      await context.action("messages/sent", {
+        source,
+        id: due.id,
+        problem: reasonOf(error),
+        failed_because: context.connectors.failedBecause(error),
+      });
       continue;
     }
     await syncAccount(context).catch(() => null);
