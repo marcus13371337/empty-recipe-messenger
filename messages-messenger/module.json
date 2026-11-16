@@ -2,7 +2,7 @@
   "id": "messages-messenger",
   "name": "Messenger",
   "description": "Brings the person's Facebook Messenger chats into the messages module and sends through it.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "uses": [
     "messages"
   ],
