@@ -153,6 +153,29 @@ test("a sync after Meta ended the login says why in the helper's own words", asy
   );
 });
 
+test("a failed sync keeps the reason's code beside its words", async () => {
+  const { engine, fake } = await setUp();
+  fake.chat("t1", [ANNA]);
+  engine.refuse("messenger", "conversations", failureFrom("Sign in again.", "needs_login"));
+
+  await expect(engine.job("messages-messenger/sync")).rejects.toThrow();
+
+  const [account] = await engine.collection("messages/accounts").query({});
+  expect(account?.failed_because).toBe("needs_login");
+});
+
+test("a sync that only timed out leaves the account without a problem", async () => {
+  const { engine, fake } = await setUp();
+  fake.chat("t1", [ANNA]);
+  await engine.job("messages-messenger/sync");
+  engine.refuse("messenger", "conversations", failureFrom("Too slow.", "timeout"));
+
+  await expect(engine.job("messages-messenger/sync")).rejects.toThrow();
+
+  const [account] = await engine.collection("messages/accounts").query({});
+  expect(account?.problem).toBeNull();
+});
+
 test("earlier messages come from the helper's history, older than the ones asked before", async () => {
   const { engine, fake } = await setUp();
   fake.chat("t1", [ANNA]);
