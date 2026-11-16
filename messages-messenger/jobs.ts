@@ -1,4 +1,4 @@
-import type { JobContext, JsonValue } from "@empty/module-sdk";
+import type { FailedBecause, JobContext, JsonValue } from "@empty/module-sdk";
 import { listOf, numberOf, objectOf, reasonOf, textOf } from "./json";
 import {
   ACCOUNT,
@@ -11,7 +11,7 @@ import {
 
 const KEPT_DAYS = 30;
 const OVERLAP_MS = 5 * 60_000;
-const SKIPPED_OUTAGES = ["asleep", "timeout"];
+const SKIPPED_OUTAGES: readonly FailedBecause[] = ["asleep", "timeout"];
 
 const isHere = async (context: JobContext) =>
   (await context.connectors.list()).some(({ name }) => name === CONNECTION);
@@ -98,8 +98,8 @@ export async function syncAccount(context: JobContext, now = new Date()) {
     await context.connectors.call(CONNECTION, "drop_events", { upTo: numberOf(waiting.upTo) ?? 0 });
     return synced;
   } catch (error) {
-    const failed_because = context.connectors.failedBecause(error);
-    if (!SKIPPED_OUTAGES.includes(failed_because ?? "")) {
+    const reason = context.connectors.failedBecause(error);
+    if (reason === null || !SKIPPED_OUTAGES.includes(reason)) {
       const state = objectOf(
         await context.connectors.call(CONNECTION, "state", {}).catch(() => null),
       );
@@ -108,7 +108,7 @@ export async function syncAccount(context: JobContext, now = new Date()) {
         source,
         account: ACCOUNT,
         problem,
-        failed_because,
+        failed_because: reason,
       });
     }
     throw error;
@@ -169,8 +169,7 @@ export async function send(context: JobContext) {
       await context.action("messages/sent", {
         source,
         id: due.id,
-        problem: reasonOf(error),
-        failed_because: context.connectors.failedBecause(error),
+        ...context.connectors.failure(error),
       });
       continue;
     }
