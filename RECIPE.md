@@ -75,9 +75,9 @@ The helper follows Meta's changes, so new releases come often. To move to one:
 
 ## Update the recipe
 
-Each new release is offered: `empty follow` lists it. Read `empty follow messages-messenger`'s diff as a stranger's code, tell the person, and on their yes `empty follow messages-messenger --done`.
+New versions come as GitHub releases, offered through `empty follow`.
 
-A copy added by hand before 0.5.0, whose `README.md` ends with `From marcus13371337/empty-recipe-messenger at <commit>.`, stops loading on Empty 0.9.14 and is offered nothing. Once: `empty recipes get marcus13371337/empty-recipe-messenger`, read and check it as in Add it, then on the person's yes `empty clone marcus13371337/empty-recipe-messenger/messages-messenger messages-messenger --existing`, and delete the old `recipes/empty-recipe-messenger/`.
+A copy added by hand before 0.5.0, whose `README.md` ends with `From marcus13371337/empty-recipe-messenger at <commit>.`, stops loading on Empty 0.9.14 and is offered nothing. Once, on the person's yes: `empty recipes get marcus13371337/empty-recipe-messenger <that commit>`, then `empty clone marcus13371337/empty-recipe-messenger/messages-messenger messages-messenger --existing`, then `empty recipes get marcus13371337/empty-recipe-messenger` for the latest release, read and check it as in Add it, and `empty follow messages-messenger`. Delete the old `recipes/empty-recipe-messenger/`.
 
 ## Remove it all
 
@@ -86,7 +86,9 @@ A copy added by hand before 0.5.0, whose `README.md` ends with `From marcus13371
 3. Delete `modules/messages-messenger/` and `recipes/marcus13371337/empty-recipe-messenger/`.
 4. Tell the person they can log the device out at facebook.com, under Accounts Center, Password and security, Where you're logged in.
 
-## For the publisher: check against real Meta
+## For the publisher
+
+Publish each version as a GitHub release tagged `v<version>`, only once an Empty release that loads it is out.
 
 The tests run against a fake helper. Before you publish a new commit or move the pinned helper version, try it once with your own account, in a home of your own:
 

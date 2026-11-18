@@ -16,7 +16,3 @@ A recipe for [Empty](https://empty.rcusahlberg.se): a person's builder agent fol
 ## Checks
 
 `empty check messages-messenger` in an app home type-checks the module and runs its tests on that app. CI does the same weekly against the newest Empty release, so a change in Empty that breaks the recipe shows here.
-
-## Releases
-
-Each version ready to use is a GitHub release, tagged `v<version>` from `module.json`: `empty follow` offers installed copies the latest one. Publish one only once an Empty release that loads it is out.
