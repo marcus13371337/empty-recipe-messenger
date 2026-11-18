@@ -8,6 +8,7 @@ A recipe for [Empty](https://empty.rcusahlberg.se): a person's builder agent fol
 
 - `RECIPE.md`: the steps for the builder: the risk, adding, updating and removing.
 - `messages-messenger/`: the module the builder copies into the app home.
+  - `module.ts` states the module and its helper program; `module.written.json` is what the app writes from it, committed so a clone reads its names.
   - `connections/messenger.ts` speaks the helper's [protocol](https://github.com/marcus13371337/messenger-helper/blob/main/PROTOCOL.md) and keeps what arrives until a sync takes it.
   - `jobs.ts` syncs and sends through the `messages` module, `actions.ts` answers its earlier-messages and attachment questions.
   - `messenger.test.ts` runs it all against `fakeHelper.test-harness.ts`, a stand-in for the helper.

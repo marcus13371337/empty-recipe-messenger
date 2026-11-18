@@ -7,7 +7,8 @@ import * as actions from "./actions";
 import { messengerConnection } from "./connections/messenger";
 import * as jobs from "./jobs";
 import { objectOf, textOf } from "./json";
-import manifest from "./module.json";
+import statement from "./module";
+import manifest from "./module.json" with { type: "json" };
 
 export const ME = { id: "100", name: "Ada" };
 export const ANNA = { id: "200", name: "Anna" };
@@ -161,6 +162,10 @@ export function fakeHelper() {
       loggedIn = false;
       emit("state", { state: "logged_out", code: "bad_session", message: reason });
     },
+    needsPerson(reason: string) {
+      loggedIn = false;
+      emit("state", { state: "needs_person", code: "needs_person", message: reason });
+    },
   };
 }
 
@@ -168,18 +173,14 @@ export async function setUp() {
   const fake = fakeHelper();
   const connection = messengerConnection();
   const mac = { control: async () => "" };
-  const context = { mac, helperProgram: () => fake.helper };
+  const session = { keep: async () => {}, read: async () => null, forget: async () => {} };
+  const context = { mac, session, helperProgram: () => fake.helper };
   const stop = new AbortController();
   let changes = 0;
   await connection.watch?.(() => (changes += 1), { ...context, signal: stop.signal });
   const engine = testEngine({
-    modules: [
-      await appModule("messages"),
-      await appModule("inbox"),
-      await appModule("people"),
-      { manifest, actions, jobs },
-    ],
-    connections: [{ name: "messenger", kind: "stdio" }],
+    modules: [await appModule("messages"), { manifest, module: statement, actions, jobs }],
+    connectors: [{ name: "messenger", kind: "stdio" }],
     connector: async (_server, tool, args) => {
       const found = connection.tools[tool];
       if (!found) throw new Error(`No tool "${tool}".`);
@@ -192,7 +193,7 @@ export async function setUp() {
       .query({ where: { source_id } });
     const messages = await engine.collection("messages/messages").query({
       where: { conversation: conversation?.id ?? "" },
-      orderBy: [{ field: "sent" }],
+      orderBy: [{ field: "sent_at" }],
     });
     return { conversation, messages };
   };
