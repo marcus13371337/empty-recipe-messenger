@@ -2,7 +2,13 @@ import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import type { CodeConnection, HelperProgram, JsonObject, JsonValue } from "@empty/module-sdk";
+import type {
+  CodeConnection,
+  FailedBecause,
+  HelperProgram,
+  JsonObject,
+  JsonValue,
+} from "@empty/module-sdk";
 import { listOf, numberOf, objectOf, textOf } from "../json";
 import {
   HELPER,
@@ -24,6 +30,11 @@ type Waiting = { seq: number; kind: "messages" | "changed" | "conversations"; va
 
 const STRING = { type: "string", minLength: 1 };
 
+const LOGIN_ENDED = new Map<string, FailedBecause | null>([
+  ["logged_out", "needs_login"],
+  ["needs_person", null],
+]);
+
 export function messengerConnection(): CodeConnection {
   const people = new People();
   const encrypted = new Set<string>();
@@ -34,9 +45,22 @@ export function messengerConnection(): CodeConnection {
   let seq = 0;
   let state: { state: string; message: string | null } | null = null;
 
+  const request = async (helper: HelperProgram, method: string, params: JsonObject) => {
+    try {
+      return await helper.request(method, params);
+    } catch (error) {
+      const reason = LOGIN_ENDED.get(state?.state ?? "");
+      if (state === null || reason === undefined) throw error;
+      const ended = new Error(
+        state.message ?? String(error instanceof Error ? error.message : error),
+      );
+      throw reason === null ? ended : Object.assign(ended, { reason });
+    }
+  };
+
   const remember = (given: Message) => {
-    const read = given.read ?? known.get(given.id)?.read;
-    const message = read ? { ...given, read } : given;
+    const readAt = given.read_at ?? known.get(given.id)?.read_at;
+    const message = readAt ? { ...given, read_at: readAt } : given;
     known.delete(message.id);
     known.set(message.id, message);
     if (known.size > KNOWN) {
@@ -91,11 +115,11 @@ export function messengerConnection(): CodeConnection {
         (message) =>
           message.conversation === conversation &&
           message.from_me &&
-          !message.read &&
-          Date.parse(message.sent) <= Date.parse(at),
+          !message.read_at &&
+          Date.parse(message.sent_at) <= Date.parse(at),
       );
       for (const message of reached) {
-        const changed = { ...message, read: at };
+        const changed = { ...message, read_at: at };
         remember(changed);
         wait("changed", changed);
       }
@@ -135,7 +159,7 @@ export function messengerConnection(): CodeConnection {
 
   const page = async (helper: HelperProgram, conversation: string, before: string | null) => {
     const answer = objectOf(
-      await helper.request("messages", {
+      await request(helper, "messages", {
         conversation_id: conversation,
         limit: PAGE,
         ...(before !== null && { before }),
@@ -152,9 +176,10 @@ export function messengerConnection(): CodeConnection {
       const answer = await page(helper, conversation, next);
       found.push(...answer.messages);
       next = answer.next;
-      if (next === null || answer.messages.some(({ sent }) => Date.parse(sent) <= after)) break;
+      if (next === null || answer.messages.some(({ sent_at }) => Date.parse(sent_at) <= after))
+        break;
     }
-    return found.filter(({ sent }) => Date.parse(sent) > after);
+    return found.filter(({ sent_at }) => Date.parse(sent_at) > after);
   };
 
   const earlier = async (
@@ -165,7 +190,7 @@ export function messengerConnection(): CodeConnection {
   ) => {
     const older = (messages: Iterable<Message>) =>
       [...messages].filter(
-        (message) => message.conversation === conversation && Date.parse(message.sent) < before,
+        (message) => message.conversation === conversation && Date.parse(message.sent_at) < before,
       );
     const cursor = cursors.get(conversation);
     let next = cursor && Date.parse(cursor.oldest) <= before ? cursor.next : null;
@@ -179,13 +204,13 @@ export function messengerConnection(): CodeConnection {
     ) {
       const answer = await page(helper, conversation, next);
       for (const message of older(answer.messages)) found.set(message.id, message);
-      const oldest = answer.messages.map(({ sent }) => sent).sort()[0];
+      const oldest = answer.messages.map(({ sent_at }) => sent_at).sort()[0];
       if (oldest) cursors.set(conversation, { oldest, next: answer.next });
       next = answer.next;
       if (next === null) break;
     }
     return [...found.values()]
-      .sort((a, b) => Date.parse(b.sent) - Date.parse(a.sent))
+      .sort((a, b) => Date.parse(b.sent_at) - Date.parse(a.sent_at))
       .slice(0, limit);
   };
 
@@ -203,7 +228,7 @@ export function messengerConnection(): CodeConnection {
     );
     try {
       const answer = objectOf(
-        await helper.request("send", {
+        await request(helper, "send", {
           conversation_id: textOf(args.conversation) ?? "",
           ...(textOf(args.text) && { text: textOf(args.text) }),
           ...(files.length > 0 && { files }),
@@ -228,7 +253,7 @@ export function messengerConnection(): CodeConnection {
     if (id.startsWith(NO_REF)) {
       throw new Error("Messenger has not handed this file over yet. Try again in a minute.");
     }
-    const answer = objectOf(await helper.request("attachment", { ref: id }));
+    const answer = objectOf(await request(helper, "attachment", { ref: id }));
     const path = textOf(answer.path) ?? "";
     try {
       const mediaType = textOf(answer.type);
@@ -236,12 +261,12 @@ export function messengerConnection(): CodeConnection {
         attachment: {
           id,
           name: textOf(answer.name) ?? basename(path),
-          mediaType,
+          media_type: mediaType,
           size: numberOf(answer.size) ?? 0,
         },
         file: {
           base64: (await readFile(path)).toString("base64"),
-          mediaType: mediaType ?? "application/octet-stream",
+          media_type: mediaType ?? "application/octet-stream",
         },
         kept: "here",
       };
@@ -257,7 +282,7 @@ export function messengerConnection(): CodeConnection {
         does: "read",
         run: async (_args, { helperProgram }) => {
           const answer = objectOf(
-            await helperProgram(HELPER).request("conversations", { limit: CONVERSATIONS }),
+            await request(helperProgram(HELPER), "conversations", { limit: CONVERSATIONS }),
           );
           return {
             conversations: listOf(answer.conversations).flatMap((raw) => listed(raw) ?? []),
@@ -312,11 +337,6 @@ export function messengerConnection(): CodeConnection {
           waiting = waiting.filter((entry) => entry.seq > upTo);
           return null;
         },
-      },
-      state: {
-        description: "The Messenger connection's last state, with its reason in plain words",
-        does: "read",
-        run: () => state,
       },
       send: {
         description: "Send text, files or both to a Messenger chat",

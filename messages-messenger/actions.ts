@@ -1,15 +1,15 @@
 import type { ActionArgs, JobContext } from "@empty/module-sdk";
-import { listOf, objectOf } from "./json";
-import { CONNECTION } from "./messenger";
+import { listOf, objectOf, textOf } from "./json";
+import { CONNECTOR, keptAttachments, keptMessage } from "./messenger";
 
 export async function older(
   context: JobContext,
   { conversation, before, limit }: ActionArgs<"messages-messenger/older">,
 ) {
   const answer = objectOf(
-    await context.connectors.call(CONNECTION, "earlier", { conversation, before, limit }),
+    await context.connectors.call(CONNECTOR, "earlier", { conversation, before, limit }),
   );
-  return { messages: listOf(answer.messages) };
+  return { messages: listOf(answer.messages).flatMap((entry) => keptMessage(entry) ?? []) };
 }
 
 export async function search() {
@@ -20,17 +20,24 @@ export async function attachment(
   context: JobContext,
   { id }: ActionArgs<"messages-messenger/attachment">,
 ) {
-  return context.connectors.call(CONNECTION, "attachment", { id });
+  const answer = objectOf(await context.connectors.call(CONNECTOR, "attachment", { id }));
+  const file = objectOf(answer.file);
+  return {
+    attachment: keptAttachments([answer.attachment ?? null])[0] ?? { id },
+    file: {
+      base64: textOf(file.base64) ?? "",
+      media_type: textOf(file.media_type) ?? "application/octet-stream",
+    },
+    kept: "here" as const,
+  };
 }
 
-const ONLY_IN_MESSENGER = "Messenger files open in Messenger: open the chat there.";
-
-export async function openAttachment(): Promise<never> {
-  throw new Error(ONLY_IN_MESSENGER);
+export async function openAttachment(context: JobContext): Promise<never> {
+  throw context.sources.refusal("cannot_do_here");
 }
 
-export async function showAttachment(): Promise<never> {
-  throw new Error(ONLY_IN_MESSENGER);
+export async function showAttachment(context: JobContext): Promise<never> {
+  throw context.sources.refusal("cannot_do_here");
 }
 
 export async function openConversation(

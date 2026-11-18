@@ -1,13 +1,13 @@
 import type { JsonValue } from "@empty/module-sdk";
 import { isObject, listOf, numberOf, objectOf, textOf } from "./json";
 
-export const CONNECTION = "messenger";
+export const CONNECTOR = "messenger";
 export const HELPER = "messenger";
-export const ACCOUNT = { id: CONNECTION, title: "Messenger" };
+export const ACCOUNT = { id: CONNECTOR, title: "Messenger" };
 export const SERVICE = "Messenger";
 
 export type Person = { handle: string; name: string | null };
-export type Attachment = { id: string; name: string; mediaType: string | null; size?: number };
+export type Attachment = { id: string; name: string; media_type: string | null; size?: number };
 export type Reaction = { from: Person | null; from_me: boolean; kind: string };
 export type Message = {
   id: string;
@@ -15,10 +15,10 @@ export type Message = {
   from: Person | null;
   from_me: boolean;
   text: string | null;
-  sent: string;
+  sent_at: string;
   attachments: Attachment[];
   reactions: Reaction[];
-  read?: string | null;
+  read_at?: string | null;
 };
 export type Conversation = {
   id: string;
@@ -87,7 +87,7 @@ function attachmentOf(raw: JsonValue, message: string): Attachment | null {
   return {
     id: textOf(raw.ref) ?? `${NO_REF}${message}/${id}`,
     name: textOf(raw.name) ?? id,
-    mediaType: textOf(raw.type),
+    media_type: textOf(raw.type),
     ...(size !== null && { size }),
   };
 }
@@ -96,9 +96,9 @@ export function messageOf(raw: JsonValue, people: People): Message | null {
   if (!isObject(raw)) return null;
   const id = textOf(raw.id);
   const conversation = textOf(raw.conversation_id);
-  const sent = textOf(raw.sent_at);
+  const sentAt = textOf(raw.sent_at);
   const sender = textOf(raw.sender_id);
-  if (id === null || conversation === null || sent === null) return null;
+  if (id === null || conversation === null || sentAt === null) return null;
   const fromMe = raw.from_me === true;
   if (fromMe && sender !== null) people.me = sender;
   const text = textOf(raw.text) || (raw.unsupported === true ? UNSUPPORTED : null);
@@ -108,7 +108,7 @@ export function messageOf(raw: JsonValue, people: People): Message | null {
     from: fromMe || sender === null ? null : people.person(sender),
     from_me: fromMe,
     text,
-    sent,
+    sent_at: sentAt,
     attachments: listOf(raw.attachments).flatMap((value) => attachmentOf(value, id) ?? []),
     reactions: listOf(raw.reactions).flatMap((value) => {
       const reaction = objectOf(value);
@@ -140,7 +140,7 @@ export const keptAttachments = (value: JsonValue | undefined): Attachment[] =>
       {
         id,
         name: textOf(attachment.name) ?? "",
-        mediaType: textOf(attachment.mediaType),
+        media_type: textOf(attachment.media_type),
         ...(size !== null && { size }),
       },
     ];
@@ -150,16 +150,16 @@ export function keptMessage(value: JsonValue): Message | null {
   const raw = objectOf(value);
   const id = textOf(raw.id);
   const conversation = textOf(raw.conversation);
-  const sent = textOf(raw.sent);
-  if (id === null || conversation === null || sent === null) return null;
-  const read = textOf(raw.read);
+  const sentAt = textOf(raw.sent_at);
+  if (id === null || conversation === null || sentAt === null) return null;
+  const readAt = textOf(raw.read_at);
   return {
     id,
     conversation,
     from: personIn(raw.from),
     from_me: raw.from_me === true,
     text: textOf(raw.text),
-    sent,
+    sent_at: sentAt,
     attachments: keptAttachments(raw.attachments),
     reactions: listOf(raw.reactions).flatMap((entry) => {
       const reaction = objectOf(entry);
@@ -168,7 +168,7 @@ export function keptMessage(value: JsonValue): Message | null {
         ? [{ from: personIn(reaction.from), from_me: reaction.from_me === true, kind }]
         : [];
     }),
-    ...(read !== null && { read }),
+    ...(readAt !== null && { read_at: readAt }),
   };
 }
 

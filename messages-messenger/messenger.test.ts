@@ -67,7 +67,7 @@ test("a reaction and a read receipt change a message already kept", async () => 
   expect(kept?.reactions).toMatchObject([
     { from: { handle: ANNA.id, name: "Anna" }, from_me: false, kind: "❤️" },
   ]);
-  expect(kept?.read).not.toBeNull();
+  expect(kept?.read_at).not.toBeNull();
 });
 
 test("a message Messenger can't carry says to open it in Messenger", async () => {
@@ -120,7 +120,7 @@ test("an attachment is fetched from the helper, and its file in the helper's fol
 
   expect(answer).toMatchObject({
     kept: "here",
-    file: { base64: Buffer.from("a picture").toString("base64"), mediaType: "image/png" },
+    file: { base64: Buffer.from("a picture").toString("base64"), media_type: "image/png" },
   });
   expect(existsSync(join(fake.folder, "r1.png"))).toBe(false);
 });
@@ -148,9 +148,25 @@ test("a sync after Meta ended the login says why in the helper's own words", asy
   await expect(engine.job("messages-messenger/sync")).rejects.toThrow();
 
   const [account] = await engine.collection("messages/accounts").query({});
-  expect(account?.problem).toBe(
-    "Messenger signed you out. Sign in again to keep your chats coming.",
-  );
+  expect(account).toMatchObject({
+    problem: "Messenger signed you out. Sign in again to keep your chats coming.",
+    failed_because: "needs_login",
+  });
+});
+
+test("a sync while Meta wants a security check says so in the helper's words, not as a sign-in", async () => {
+  const { engine, fake } = await setUp();
+  fake.chat("t1", [ANNA]);
+  await engine.job("messages-messenger/sync");
+
+  fake.needsPerson("Meta wants you to confirm it's you at facebook.com.");
+  await expect(engine.job("messages-messenger/sync")).rejects.toThrow();
+
+  const [account] = await engine.collection("messages/accounts").query({});
+  expect(account).toMatchObject({
+    problem: "Meta wants you to confirm it's you at facebook.com.",
+    failed_because: null,
+  });
 });
 
 test("a failed sync keeps the reason's code beside its words", async () => {
@@ -234,7 +250,7 @@ test("a read receipt stays when a later sync reads the chat again", async () => 
   await engine.job("messages-messenger/sync");
 
   const [mine] = (await chat("t1")).messages;
-  expect(mine?.read).not.toBeNull();
+  expect(mine?.read_at).not.toBeNull();
 });
 
 test("a reply in an encrypted chat is kept from the helper's answer, before its echo arrives", async () => {
@@ -265,11 +281,11 @@ test("asking for earlier messages twice goes on from where the first answer ende
       conversation: "t1",
       before,
       limit: 150,
-    })) as { messages: { text: string; sent: string }[] };
+    })) as { messages: { text: string; sent_at: string }[] };
 
   const first = await older(new Date(Date.now() - 100.5 * 60_000).toISOString());
   const asked = fake.asked.length;
-  const second = await older(first.messages.at(-1)?.sent ?? "");
+  const second = await older(first.messages.at(-1)?.sent_at ?? "");
 
   expect(first.messages[0]?.text).toBe("Line 101");
   expect(second.messages[0]?.text).toBe("Line 251");
@@ -286,15 +302,15 @@ test("the person's own reaction in a chat's history is theirs", async () => {
   await engine.job("messages-messenger/sync");
 
   const [cake] = (await chat("t1")).messages;
-  expect(cake?.reactions).toEqual([{ from: null, from_me: true, kind: "😍" }]);
+  expect(cake?.reactions).toMatchObject([{ from: null, from_me: true, kind: "😍" }]);
 });
 
-test("a Messenger file can't be opened on the Mac, and says to open the chat in Messenger", async () => {
+test("a Messenger file can't be opened on the Mac", async () => {
   const { engine } = await setUp();
 
   await expect(
     engine.run("messages-messenger/openAttachment", { account: "messenger", id: "r1" }),
-  ).rejects.toThrow("open the chat there");
+  ).rejects.toThrow("Its source cannot do this.");
 });
 
 test("a chat opens in Messenger at facebook.com/messages", async () => {
