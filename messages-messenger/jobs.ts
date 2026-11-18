@@ -57,9 +57,9 @@ async function lastLines(context: JobContext, account: string | undefined) {
   return last;
 }
 
-async function syncAccount(context: JobContext, now = new Date()) {
+async function syncAccount(context: JobContext) {
   const source = context.module;
-  const since = new Date(now.getTime() - KEPT_DAYS * 86_400_000);
+  const since = new Date(Date.now() - KEPT_DAYS * 86_400_000);
   const [kept] = await context
     .collection("messages/accounts")
     .query({ where: { source, source_id: ACCOUNT.id } });

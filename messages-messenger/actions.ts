@@ -22,13 +22,12 @@ export async function attachment(
 ) {
   const answer = objectOf(await context.connectors.call(CONNECTOR, "attachment", { id }));
   const file = objectOf(answer.file);
+  const base64 = textOf(file.base64);
+  const mediaType = textOf(file.media_type);
   return {
     attachment: keptAttachments([answer.attachment ?? null])[0] ?? { id },
-    file: {
-      base64: textOf(file.base64) ?? "",
-      media_type: textOf(file.media_type) ?? "application/octet-stream",
-    },
-    kept: "here" as const,
+    file: base64 === null || mediaType === null ? null : { base64, media_type: mediaType },
+    kept: base64 === null ? ("at_source" as const) : ("here" as const),
   };
 }
 

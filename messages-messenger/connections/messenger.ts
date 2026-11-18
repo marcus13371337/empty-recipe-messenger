@@ -30,11 +30,10 @@ type Waiting = { seq: number; kind: "messages" | "changed" | "conversations"; va
 
 const STRING = { type: "string", minLength: 1 };
 
-const LOGIN_ENDED = new Map<string, FailedBecause | null>([
-  ["logged_out", "needs_login"],
-  ["needs_person", null],
-]);
-
+const FINAL_STATES: Record<string, { reason?: FailedBecause }> = {
+  logged_out: { reason: "needs_login" },
+  needs_person: {},
+};
 export function messengerConnection(): CodeConnection {
   const people = new People();
   const encrypted = new Set<string>();
@@ -49,12 +48,11 @@ export function messengerConnection(): CodeConnection {
     try {
       return await helper.request(method, params);
     } catch (error) {
-      const reason = LOGIN_ENDED.get(state?.state ?? "");
-      if (state === null || reason === undefined) throw error;
-      const ended = new Error(
-        state.message ?? String(error instanceof Error ? error.message : error),
-      );
-      throw reason === null ? ended : Object.assign(ended, { reason });
+      const final =
+        state && Object.hasOwn(FINAL_STATES, state.state) ? FINAL_STATES[state.state] : undefined;
+      if (state === null || final === undefined) throw error;
+      const words = state.message ?? (error instanceof Error ? error.message : String(error));
+      throw Object.assign(new Error(words), final);
     }
   };
 
