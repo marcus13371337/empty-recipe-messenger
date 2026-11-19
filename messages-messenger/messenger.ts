@@ -1,5 +1,5 @@
-import type { JsonValue } from "@empty/module-sdk";
-import { isObject, listOf, numberOf, objectOf, textOf } from "./json";
+import { isJsonObject, type JsonValue } from "@empty/module-sdk";
+import { listOf, numberOf, objectOf, textOf } from "./json";
 
 export const CONNECTOR = "messenger";
 export const HELPER = "messenger";
@@ -55,7 +55,7 @@ export class People {
 }
 
 export function listedOf(raw: JsonValue, people: People): Listed | null {
-  if (!isObject(raw)) return null;
+  if (!isJsonObject(raw)) return null;
   const id = textOf(raw.id);
   if (id === null) return null;
   const participants = listOf(raw.participants).flatMap((value) => {
@@ -81,7 +81,7 @@ export function listedOf(raw: JsonValue, people: People): Listed | null {
 }
 
 function attachmentOf(raw: JsonValue, message: string): Attachment | null {
-  if (!isObject(raw)) return null;
+  if (!isJsonObject(raw)) return null;
   const id = textOf(raw.id) ?? "";
   const size = numberOf(raw.size);
   return {
@@ -93,7 +93,7 @@ function attachmentOf(raw: JsonValue, message: string): Attachment | null {
 }
 
 export function messageOf(raw: JsonValue, people: People): Message | null {
-  if (!isObject(raw)) return null;
+  if (!isJsonObject(raw)) return null;
   const id = textOf(raw.id);
   const conversation = textOf(raw.conversation_id);
   const sentAt = textOf(raw.sent_at);
