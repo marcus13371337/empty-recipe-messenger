@@ -15,7 +15,7 @@ Tell the person, in your own words, and go on only on their yes:
 
 ## Needs
 
-- Empty 0.9.14 or newer: modules stated in code, and the shared protocol for sources. An older app refuses the module.
+- Empty 0.9.16 or newer. An older app refuses the module.
 - A Mac with Apple silicon or Intel.
 
 ## Add it

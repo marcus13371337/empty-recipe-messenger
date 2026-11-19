@@ -37,26 +37,6 @@ async function freshMessages(context: JobContext, listed: Listed[], after: numbe
   return found;
 }
 
-async function lastLines(context: JobContext, account: string | undefined) {
-  const last = new Map<string, Message>();
-  if (account === undefined) return last;
-  const rows = await context.collection("messages/conversations").query({ where: { account } });
-  for (const { source_id, last_text, last_at, last_from_me } of rows) {
-    if (!source_id || !last_at) continue;
-    last.set(source_id, {
-      id: `${source_id}/last`,
-      conversation: source_id,
-      from: null,
-      from_me: last_from_me ?? false,
-      text: last_text ?? null,
-      sent_at: last_at,
-      attachments: [],
-      reactions: [],
-    });
-  }
-  return last;
-}
-
 async function syncAccount(context: JobContext) {
   const source = context.module;
   const since = new Date(Date.now() - KEPT_DAYS * 86_400_000);
@@ -73,9 +53,8 @@ async function syncAccount(context: JobContext) {
       ...(await freshMessages(context, listed, syncedAt)),
       ...messagesIn(waiting.messages),
     ]).filter(({ sent_at }) => Date.parse(sent_at) >= since.getTime());
-    const newest = await lastLines(context, kept?.id);
     const oldestFirst = [...messages].sort((a, b) => Date.parse(a.sent_at) - Date.parse(b.sent_at));
-    for (const message of oldestFirst) newest.set(message.conversation, message);
+    const newest = new Map(oldestFirst.map((message) => [message.conversation, message]));
     const conversations = unique(
       [...listed, ...listingsIn(waiting.conversations)].map(({ conversation }) => conversation),
     ).map((conversation) => {
