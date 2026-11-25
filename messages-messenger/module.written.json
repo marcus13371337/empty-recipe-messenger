@@ -47,6 +47,10 @@
   },
   "jobs": [
     {
+      "job": "resync",
+      "timeout": "10m"
+    },
+    {
       "job": "send",
       "timeout": "5m"
     },
@@ -80,6 +84,14 @@
         "added",
         "removed"
       ]
+    },
+    {
+      "job": "sync",
+      "setting": "messages-messenger/kept_days"
+    },
+    {
+      "job": "sync",
+      "setting": "messages-messenger/chats"
     }
   ]
 }

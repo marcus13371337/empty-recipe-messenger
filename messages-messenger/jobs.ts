@@ -36,7 +36,7 @@ async function freshMessages(context: JobContext, listed: Listed[], after: numbe
   return found;
 }
 
-async function syncAccount(context: JobContext) {
+async function syncAccount(context: JobContext, { fromStart = false } = {}) {
   const source = context.module;
   const keptDays = await context.setting("messages-messenger/kept_days");
   const chats = await context.setting("messages-messenger/chats");
@@ -44,7 +44,8 @@ async function syncAccount(context: JobContext) {
   const [kept] = await context
     .collection("messages/accounts")
     .query({ where: { source, source_id: ACCOUNT.id } });
-  const syncedAt = kept?.synced_at ? Date.parse(kept.synced_at) - OVERLAP_MS : since.getTime();
+  const syncedAt =
+    kept?.synced_at && !fromStart ? Date.parse(kept.synced_at) - OVERLAP_MS : since.getTime();
   return context.sources.syncing("messages", ACCOUNT, async () => {
     const listed = listingsIn(
       objectOf(await context.connectors.call(CONNECTOR, "conversations", { limit: chats }))
@@ -79,23 +80,49 @@ async function syncAccount(context: JobContext) {
 const messengerConnectors = async (context: JobContext) =>
   (await context.connectors.list()).filter(({ name }) => name === CONNECTOR);
 
+const KEPT_WINDOW = ["kept_days", "chats"];
+
+const keepsMore = (event: JobEvent | undefined) =>
+  (event?.settings ?? []).some(
+    ({ module, name, value, before }) =>
+      module === "messages-messenger" &&
+      KEPT_WINDOW.includes(name) &&
+      typeof value === "number" &&
+      typeof before === "number" &&
+      value > before,
+  );
+
+async function feedEvery(
+  context: JobContext,
+  { event, fromStart = false }: { event?: JobEvent | undefined; fromStart?: boolean },
+) {
+  const synced = await context.sources.feed("messages", {
+    connectors: await messengerConnectors(context),
+    event,
+    resync: fromStart,
+    run: async (_connector, reading) => {
+      await syncAccount(context, { fromStart: reading.resync || keepsMore(event) });
+    },
+  });
+  return { synced };
+}
+
 export const sync = job(
   {
     timeout: "5m",
     every: "5m",
     catchUp: true,
-    when: [{ connector: CONNECTOR, on: ["changed", "added", "removed"] }],
+    when: [
+      { connector: CONNECTOR, on: ["changed", "added", "removed"] },
+      { setting: "messages-messenger/kept_days" },
+      { setting: "messages-messenger/chats" },
+    ],
   },
-  async (context: JobContext, event?: JobEvent) => {
-    const synced = await context.sources.feed("messages", {
-      connectors: await messengerConnectors(context),
-      event,
-      run: async () => {
-        await syncAccount(context);
-      },
-    });
-    return { synced };
-  },
+  (context: JobContext, event?: JobEvent) => feedEvery(context, { event }),
+);
+
+export const resync = job({ timeout: "10m" }, (context: JobContext) =>
+  feedEvery(context, { fromStart: true }),
 );
 
 export const send = job(
