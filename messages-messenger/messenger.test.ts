@@ -52,6 +52,26 @@ test("a sync sends every person as a Messenger chat id", async () => {
   expect(messages[0]?.reactions).toMatchObject([{ from: { handle: ANNA.id, kind: "id" } }]);
 });
 
+test("with messages-people on, a Messenger person comes into People unlinked, and the chat takes their People name once linked", async () => {
+  const { engine, fake, chat } = await setUp({ alongside: ["messages-people"] });
+  fake.chat("t1", [ANNA]);
+  fake.said("t1", ANNA, "Hej", 5);
+
+  await engine.job("messages-messenger/sync");
+  expect(await engine.collection("people/handles").query()).toMatchObject([
+    { value: ANNA.id, service: "Messenger", name: "Anna", someone: null },
+  ]);
+  await engine.run("people/add", {
+    given_name: "Anna",
+    family_name: "Lind",
+    handles: [{ kind: "id", service: "Messenger", value: ANNA.id }],
+  });
+
+  const { conversation, messages } = await chat("t1");
+  expect(conversation).toMatchObject({ title: "Anna Lind" });
+  expect(messages[0]).toMatchObject({ from_name: "Anna Lind" });
+});
+
 test("an encrypted chat keeps what arrives, since Meta serves no history for it", async () => {
   const { engine, fake, chat, changes } = await setUp();
   fake.chat("e1", [ANNA], { encrypted: true });
