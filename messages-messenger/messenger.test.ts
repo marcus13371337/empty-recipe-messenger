@@ -27,6 +27,31 @@ test("a sync keeps the chats and their last 30 days, named as in Messenger", asy
   expect(group.messages[0]).toMatchObject({ text: "Look at this", from_name: "Bo" });
 });
 
+test("a sync sends every person as a Messenger chat id", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA, BO], { group: true });
+  const said = fake.said("t1", ME, "Pizza?", 10);
+  fake.said("t1", BO, "Yes", 5);
+  await engine.job("messages-messenger/sync");
+  fake.emit("reaction", {
+    conversation_id: "t1",
+    message_id: said.id ?? "",
+    sender_id: ANNA.id,
+    emoji: "👍",
+    at: new Date().toISOString(),
+  });
+
+  await engine.job("messages-messenger/sync");
+
+  const { conversation, messages } = await chat("t1");
+  expect(conversation?.participants.map(({ handle, kind }) => ({ handle, kind }))).toEqual([
+    { handle: ANNA.id, kind: "id" },
+    { handle: BO.id, kind: "id" },
+  ]);
+  expect(messages.at(-1)).toMatchObject({ from_handle: BO.id, from_kind: "id" });
+  expect(messages[0]?.reactions).toMatchObject([{ from: { handle: ANNA.id, kind: "id" } }]);
+});
+
 test("an encrypted chat keeps what arrives, since Meta serves no history for it", async () => {
   const { engine, fake, chat, changes } = await setUp();
   fake.chat("e1", [ANNA], { encrypted: true });

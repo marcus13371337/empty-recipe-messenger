@@ -6,7 +6,13 @@ export const HELPER = "messenger";
 export const ACCOUNT = { id: CONNECTOR, title: "Messenger" };
 export const SERVICE = "Messenger";
 
-export type Person = { handle: string; name: string | null };
+export type Person = { handle: string; kind: "id"; name: string | null };
+
+export const personOf = (handle: string, name: string | null): Person => ({
+  handle,
+  kind: "id",
+  name,
+});
 export type Attachment = { id: string; name: string; media_type: string | null; size?: number };
 export type Reaction = { from: Person | null; from_me: boolean; kind: string };
 export type Message = {
@@ -50,7 +56,7 @@ export class People {
   }
 
   person(id: string): Person {
-    return { handle: id, name: this.names.get(id) ?? null };
+    return personOf(id, this.names.get(id) ?? null);
   }
 }
 
@@ -64,7 +70,7 @@ export function listedOf(raw: JsonValue, people: People): Listed | null {
     if (handle === null) return [];
     const name = textOf(person.name);
     people.learn(handle, name);
-    return [{ handle, name }];
+    return [personOf(handle, name)];
   });
   return {
     conversation: {
@@ -127,7 +133,7 @@ export const reactionOf = (from: string, kind: string, people: People): Reaction
 
 const personIn = (value: JsonValue | undefined): Person | null => {
   const handle = textOf(objectOf(value).handle);
-  return handle === null ? null : { handle, name: textOf(objectOf(value).name) };
+  return handle === null ? null : personOf(handle, textOf(objectOf(value).name));
 };
 
 export const keptAttachments = (value: JsonValue | undefined): Attachment[] =>
