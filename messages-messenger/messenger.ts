@@ -7,12 +7,6 @@ export const ACCOUNT = { id: CONNECTOR, title: "Messenger" };
 export const SERVICE = "Messenger";
 
 export type Person = { handle: string; kind: "id"; name: string | null };
-
-export const personOf = (handle: string, name: string | null): Person => ({
-  handle,
-  kind: "id",
-  name,
-});
 export type Attachment = { id: string; name: string; media_type: string | null; size?: number };
 export type Reaction = { from: Person | null; from_me: boolean; kind: string };
 export type Message = {
@@ -35,6 +29,12 @@ export type Conversation = {
   unread: number;
 };
 export type Listed = { conversation: Conversation; encrypted: boolean; last_activity_at: string };
+
+const personOf = (handle: string, name: string | null): Person => ({
+  handle,
+  kind: "id",
+  name: name || null,
+});
 
 export const UNSUPPORTED = "This message can only be seen in Messenger.";
 export const NO_REF = "no-ref:";

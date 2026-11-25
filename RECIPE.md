@@ -46,7 +46,7 @@ Tell the person, in your own words, and go on only on their yes:
 - Their 100 most recent chats and the last 30 days of messages, in Messages, next to their other chats.
 - Replies, with pictures and files, from the chat. The app asks before anything is sent, as it does for every send.
 - Reactions and, in one-to-one chats, when their message was read.
-- Names as Messenger has them. Messenger shares no phone numbers or email addresses, so with `messages-people` on, each person comes into People unlinked, to be linked once; then chats show the People name.
+- Names as Messenger has them. Messenger shares no phone numbers or email addresses, so Contacts can't name or picture these people, and chats show initials. With `messages-people` on, each person comes into People unlinked, to be linked once; then chats show the People name.
 
 Not there: starting a new chat, edits, deleted messages, polls, calls, and search beyond what the app keeps.
 
