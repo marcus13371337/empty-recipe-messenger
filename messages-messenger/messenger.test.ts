@@ -459,15 +459,35 @@ test("raising chats brings in a quiet chat's messages within the kept days", asy
   expect((await chat("t1")).messages.map(({ text }) => text)).toEqual(["Quiet for a while"]);
 });
 
-test("a resync reads every chat again from the start of the kept days", async () => {
+test("a re-read of more kept days that was cut short is done by the next sync", async () => {
   const { engine, fake, chat } = await setUp();
   fake.chat("t1", [ANNA]);
+  fake.said("t1", ANNA, "Forty days ago", 60 * 24 * 40);
+  fake.said("t1", ANNA, "Today", 10);
   await engine.job("messages-messenger/sync");
-  fake.said("t1", ANNA, "Missed by the last sync", 60 * 24 * 2);
+  const allow = engine.refuse("messenger", "since", failureFrom("Too slow.", "timeout"));
+  await engine.set("messages-messenger/kept_days", 60).catch(() => {});
+  allow();
+
   await engine.job("messages-messenger/sync");
-  expect((await chat("t1")).messages).toEqual([]);
 
-  await engine.job("messages-messenger/resync");
+  expect((await chat("t1")).messages.map(({ text }) => text)).toEqual(["Forty days ago", "Today"]);
+});
 
-  expect((await chat("t1")).messages.map(({ text }) => text)).toEqual(["Missed by the last sync"]);
+test("a quiet chat that comes into the listed chats brings its messages within the kept days", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.chat("t2", [BO]);
+  fake.said("t1", ANNA, "Three days ago", 60 * 24 * 3);
+  fake.said("t2", BO, "Busy", 20);
+  await engine.set("messages-messenger/chats", 1);
+  await engine.job("messages-messenger/sync");
+  fake.said("t1", ANNA, "Back again", 10);
+
+  await engine.job("messages-messenger/sync");
+
+  expect((await chat("t1")).messages.map(({ text }) => text)).toEqual([
+    "Three days ago",
+    "Back again",
+  ]);
 });

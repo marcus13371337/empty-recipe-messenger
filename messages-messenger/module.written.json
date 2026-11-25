@@ -47,10 +47,6 @@
   },
   "jobs": [
     {
-      "job": "resync",
-      "timeout": "10m"
-    },
-    {
       "job": "send",
       "timeout": "5m"
     },
