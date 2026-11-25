@@ -28,7 +28,7 @@ export type Message = {
 };
 export type Conversation = {
   id: string;
-  name: string;
+  name: string | null;
   group: boolean;
   service: string;
   participants: Person[];
@@ -72,10 +72,12 @@ export function listedOf(raw: JsonValue, people: People): Listed | null {
     people.learn(handle, name);
     return [personOf(handle, name)];
   });
+  const namedByParticipants = participants.flatMap(({ name }) => name ?? []).join(", ");
+  const name = textOf(raw.name) || null;
   return {
     conversation: {
       id,
-      name: textOf(raw.name) ?? participants.map(({ name }) => name ?? "").join(", "),
+      name: name === namedByParticipants ? null : name,
       group: raw.kind === "group",
       service: SERVICE,
       participants,
@@ -186,7 +188,7 @@ export function keptListing(value: JsonValue): Listed | null {
   return {
     conversation: {
       id,
-      name: textOf(conversation.name) ?? "",
+      name: textOf(conversation.name),
       group: conversation.group === true,
       service: SERVICE,
       participants: listOf(conversation.participants).flatMap((entry) => personIn(entry) ?? []),

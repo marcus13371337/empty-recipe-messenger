@@ -127,14 +127,14 @@ export function fakeHelper() {
     chat(
       id: string,
       people: (typeof ANNA)[],
-      options: { group?: boolean; encrypted?: boolean } = {},
+      options: { group?: boolean; encrypted?: boolean; name?: string } = {},
     ) {
       chats.set(id, {
         id,
         kind: options.group ? "group" : "direct",
         encrypted: options.encrypted ?? false,
         people,
-        name: people.map(({ name }) => name).join(", "),
+        name: options.name ?? people.map(({ name }) => name).join(", "),
         last: minutesAgo(60 * 24 * 365),
         unread: false,
       });
@@ -169,7 +169,7 @@ export function fakeHelper() {
   };
 }
 
-export async function setUp({ alongside = [] as string[] } = {}) {
+export async function setUp({ alongside = [] }: { alongside?: string[] } = {}) {
   const fake = fakeHelper();
   const connection = messengerConnection();
   const mac = { control: async () => "" };
