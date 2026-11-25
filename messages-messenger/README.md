@@ -11,7 +11,7 @@ End-to-end encrypted chats have no history to fetch, so they hold only what arri
 ## What it decides
 
 - **How long messages are kept**: `kept_days`, `30`. A message dropped from an encrypted chat can't be fetched again.
-- **How many chats are listed**: `chats`, `100`, the most recent.
-- **How often it syncs and sends**: syncs every 5 minutes and sends every minute, besides each change. Fixed, as in the bundled `messages-macos`.
+- **How many chats are listed**: `chats`, `100`, the most recent. A chat no longer listed stays while it has messages kept.
+- **How often it syncs and sends**: syncs every 5 minutes and sends every minute, besides each change.
 
-Raising either setting reads every listed chat again over the kept days, at once. If that was cut short, `empty run messages-messenger --job resync` reads them again.
+A sync after `kept_days` is raised, and the first sync of a newly listed chat, read the chat over all the kept days, up to its newest 2,000 messages.

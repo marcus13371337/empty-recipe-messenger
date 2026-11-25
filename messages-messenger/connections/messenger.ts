@@ -21,7 +21,7 @@ import {
   reactionOf,
 } from "../messenger";
 
-const HELPER_PAGE = 100;
+const CONVERSATIONS_PAGE = 100;
 const KNOWN = 5_000;
 const PAGE = 100;
 const PAGES = 20;
@@ -215,10 +215,10 @@ export function messengerConnection(): CodeConnection {
   const conversations = async (helper: HelperProgram, limit: number) => {
     const found: Listed[] = [];
     let before: string | null = null;
-    while (found.length < limit) {
+    for (let fetched = 0; fetched < PAGES && found.length < limit; fetched += 1) {
       const answer = objectOf(
         await request(helper, "conversations", {
-          limit: Math.min(HELPER_PAGE, limit - found.length),
+          limit: Math.min(CONVERSATIONS_PAGE, limit - found.length),
           ...(before !== null && { before }),
         }),
       );
@@ -301,7 +301,7 @@ export function messengerConnection(): CodeConnection {
           required: ["limit"],
         },
         run: async (args, { helperProgram }) => ({
-          conversations: await conversations(helperProgram(HELPER), numberOf(args.limit) ?? 100),
+          conversations: await conversations(helperProgram(HELPER), numberOf(args.limit) ?? 0),
         }),
       },
       since: {
