@@ -9,7 +9,6 @@ import {
   type Message,
 } from "./messenger";
 
-const KEPT_DAYS = 30;
 const OVERLAP_MS = 5 * 60_000;
 
 function unique<T extends { id: string }>(values: T[]): T[] {
@@ -39,14 +38,17 @@ async function freshMessages(context: JobContext, listed: Listed[], after: numbe
 
 async function syncAccount(context: JobContext) {
   const source = context.module;
-  const since = new Date(Date.now() - KEPT_DAYS * 86_400_000);
+  const keptDays = await context.setting("messages-messenger/kept_days");
+  const chats = await context.setting("messages-messenger/chats");
+  const since = new Date(Date.now() - keptDays * 86_400_000);
   const [kept] = await context
     .collection("messages/accounts")
     .query({ where: { source, source_id: ACCOUNT.id } });
   const syncedAt = kept?.synced_at ? Date.parse(kept.synced_at) - OVERLAP_MS : since.getTime();
   return context.sources.syncing("messages", ACCOUNT, async () => {
     const listed = listingsIn(
-      objectOf(await context.connectors.call(CONNECTOR, "conversations", {})).conversations,
+      objectOf(await context.connectors.call(CONNECTOR, "conversations", { limit: chats }))
+        .conversations,
     );
     const waiting = objectOf(await context.connectors.call(CONNECTOR, "take_events", {}));
     const messages = unique([

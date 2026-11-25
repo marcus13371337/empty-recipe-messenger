@@ -4,6 +4,20 @@ export default module({
   name: "Messenger",
   description:
     "Brings the person's Facebook Messenger chats into the messages module and sends through it.",
+  settings: {
+    kept_days: {
+      type: "integer",
+      default: 30,
+      min: 1,
+      max: 3650,
+    },
+    chats: {
+      type: "integer",
+      default: 100,
+      min: 1,
+      max: 2000,
+    },
+  },
   sourceOf: "messages",
   connectors: ["messenger"],
   helperPrograms: {

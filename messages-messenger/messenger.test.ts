@@ -391,3 +391,30 @@ test("a sync with the Messenger connection gone marks the account gone", async (
   const [account] = await engine.collection("messages/accounts").query({});
   expect(account?.gone_at).not.toBeNull();
 });
+
+test("a sync lists as many of the most recent chats as the chats setting says", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.chat("t2", [BO]);
+  fake.said("t1", ANNA, "Older", 30);
+  fake.said("t2", BO, "Newer", 10);
+
+  await engine.set("messages-messenger/chats", 1);
+  await engine.job("messages-messenger/sync");
+
+  expect((await chat("t2")).conversation).toMatchObject({ title: "Bo" });
+  expect((await chat("t1")).conversation).toBeUndefined();
+});
+
+test("a chats setting above the helper's page of 100 lists them all", async () => {
+  const { engine, fake } = await setUp();
+  for (let index = 0; index < 150; index += 1) {
+    fake.chat(`t${index}`, [ANNA]);
+    fake.said(`t${index}`, ANNA, "Hej", index + 1);
+  }
+
+  await engine.set("messages-messenger/chats", 150);
+  await engine.job("messages-messenger/sync");
+
+  expect(await engine.collection("messages/conversations").query()).toHaveLength(150);
+});
