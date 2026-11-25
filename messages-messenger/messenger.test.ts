@@ -17,7 +17,11 @@ test("a sync keeps the chats and their last 30 days, named as in Messenger", asy
   await engine.job("messages-messenger/sync");
 
   const withAnna = await chat("t1");
-  expect(withAnna.conversation).toMatchObject({ title: "Anna", group: false, service: "Messenger" });
+  expect(withAnna.conversation).toMatchObject({
+    title: "Anna",
+    group: false,
+    service: "Messenger",
+  });
   expect(withAnna.messages.map(({ text, from_me }) => ({ text, from_me }))).toEqual([
     { text: "Dinner on Friday?", from_me: false },
     { text: "Yes!", from_me: true },
@@ -45,7 +49,7 @@ test("a sync sends every person as a Messenger chat id", async () => {
   await engine.job("messages-messenger/sync");
 
   const { conversation, messages } = await chat("t1");
-  expect(conversation?.participants.map(({ handle, kind, name }) => ({ handle, kind, name }))).toEqual([
+  expect(conversation?.participants).toMatchObject([
     { handle: ANNA.id, kind: "id", name: "Anna" },
     { handle: BO.id, kind: "id", name: "Bo" },
     { handle: unknown.id, kind: "id", name: null },
