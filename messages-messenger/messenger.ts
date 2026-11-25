@@ -6,7 +6,7 @@ export const HELPER = "messenger";
 export const ACCOUNT = { id: CONNECTOR, title: "Messenger" };
 export const SERVICE = "Messenger";
 
-export type Person = { handle: string; name: string | null };
+export type Person = { handle: string; kind: "id"; name: string | null };
 export type Attachment = { id: string; name: string; media_type: string | null; size?: number };
 export type Reaction = { from: Person | null; from_me: boolean; kind: string };
 export type Message = {
@@ -22,13 +22,19 @@ export type Message = {
 };
 export type Conversation = {
   id: string;
-  name: string;
+  name: string | null;
   group: boolean;
   service: string;
   participants: Person[];
   unread: number;
 };
 export type Listed = { conversation: Conversation; encrypted: boolean; last_activity_at: string };
+
+const personOf = (handle: string, name: string | null): Person => ({
+  handle,
+  kind: "id",
+  name: name || null,
+});
 
 export const UNSUPPORTED = "This message can only be seen in Messenger.";
 export const NO_REF = "no-ref:";
@@ -50,7 +56,7 @@ export class People {
   }
 
   person(id: string): Person {
-    return { handle: id, name: this.names.get(id) ?? null };
+    return personOf(id, this.names.get(id) ?? null);
   }
 }
 
@@ -64,12 +70,14 @@ export function listedOf(raw: JsonValue, people: People): Listed | null {
     if (handle === null) return [];
     const name = textOf(person.name);
     people.learn(handle, name);
-    return [{ handle, name }];
+    return [personOf(handle, name)];
   });
+  const namedByParticipants = participants.flatMap(({ name }) => name ?? []).join(", ");
+  const name = textOf(raw.name) || null;
   return {
     conversation: {
       id,
-      name: textOf(raw.name) ?? participants.map(({ name }) => name ?? "").join(", "),
+      name: name === namedByParticipants ? null : name,
       group: raw.kind === "group",
       service: SERVICE,
       participants,
@@ -127,7 +135,7 @@ export const reactionOf = (from: string, kind: string, people: People): Reaction
 
 const personIn = (value: JsonValue | undefined): Person | null => {
   const handle = textOf(objectOf(value).handle);
-  return handle === null ? null : { handle, name: textOf(objectOf(value).name) };
+  return handle === null ? null : personOf(handle, textOf(objectOf(value).name));
 };
 
 export const keptAttachments = (value: JsonValue | undefined): Attachment[] =>
@@ -180,7 +188,7 @@ export function keptListing(value: JsonValue): Listed | null {
   return {
     conversation: {
       id,
-      name: textOf(conversation.name) ?? "",
+      name: textOf(conversation.name),
       group: conversation.group === true,
       service: SERVICE,
       participants: listOf(conversation.participants).flatMap((entry) => personIn(entry) ?? []),

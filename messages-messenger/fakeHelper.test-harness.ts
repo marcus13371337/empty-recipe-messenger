@@ -127,14 +127,14 @@ export function fakeHelper() {
     chat(
       id: string,
       people: (typeof ANNA)[],
-      options: { group?: boolean; encrypted?: boolean } = {},
+      options: { group?: boolean; encrypted?: boolean; name?: string } = {},
     ) {
       chats.set(id, {
         id,
         kind: options.group ? "group" : "direct",
         encrypted: options.encrypted ?? false,
         people,
-        name: people.map(({ name }) => name).join(", "),
+        name: options.name ?? people.map(({ name }) => name).join(", "),
         last: minutesAgo(60 * 24 * 365),
         unread: false,
       });
@@ -169,7 +169,7 @@ export function fakeHelper() {
   };
 }
 
-export async function setUp() {
+export async function setUp({ alongside = [] }: { alongside?: string[] } = {}) {
   const fake = fakeHelper();
   const connection = messengerConnection();
   const mac = { control: async () => "" };
@@ -179,7 +179,11 @@ export async function setUp() {
   let changes = 0;
   await connection.watch?.(() => (changes += 1), { ...context, signal: stop.signal });
   const engine = testEngine({
-    modules: [await appModule("messages"), { manifest, module: statement, actions, jobs }],
+    modules: [
+      await appModule("messages"),
+      ...(await Promise.all(alongside.map((id) => appModule(id)))),
+      { manifest, module: statement, actions, jobs },
+    ],
     connectors: [{ name: "messenger", kind: "stdio" }],
     connector: async (_server, tool, args) => {
       const found = connection.tools[tool];
