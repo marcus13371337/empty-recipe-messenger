@@ -1,0 +1,6 @@
+{
+  "settings.kept_days.title": "Days of messages kept",
+  "settings.kept_days.description": "Messages older than this are dropped here. Meta keeps no copy of encrypted chats, so a message dropped from one can't come back.",
+  "settings.chats.title": "Chats kept",
+  "settings.chats.description": "How many of the latest Messenger chats are listed here. A chat no longer listed stays while it has messages kept."
+}

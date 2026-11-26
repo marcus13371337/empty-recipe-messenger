@@ -1,0 +1,6 @@
+{
+  "settings.kept_days.title": "Dagar med meddelanden som sparas",
+  "settings.kept_days.description": "Meddelanden som är äldre än så tas bort här. Meta sparar ingen kopia av krypterade chattar, så ett meddelande som tagits bort från en sådan kan inte komma tillbaka.",
+  "settings.chats.title": "Chattar som sparas",
+  "settings.chats.description": "Hur många av de senaste Messenger-chattarna som listas här. En chatt som inte längre listas finns kvar så länge den har sparade meddelanden."
+}

@@ -391,3 +391,103 @@ test("a sync with the Messenger connection gone marks the account gone", async (
   const [account] = await engine.collection("messages/accounts").query({});
   expect(account?.gone_at).not.toBeNull();
 });
+
+test("a sync lists as many of the most recent chats as the chats setting says", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.chat("t2", [BO]);
+  fake.said("t1", ANNA, "Older", 30);
+  fake.said("t2", BO, "Newer", 10);
+
+  await engine.set("messages-messenger/chats", 1);
+  await engine.job("messages-messenger/sync");
+
+  expect((await chat("t2")).conversation).toMatchObject({ title: "Bo" });
+  expect((await chat("t1")).conversation).toBeUndefined();
+});
+
+test("a chats setting above the helper's page of 100 lists them all", async () => {
+  const { engine, fake } = await setUp();
+  for (let index = 0; index < 150; index += 1) {
+    fake.chat(`t${index}`, [ANNA]);
+    fake.said(`t${index}`, ANNA, "Hej", index + 1);
+  }
+
+  await engine.set("messages-messenger/chats", 150);
+  await engine.job("messages-messenger/sync");
+
+  expect(await engine.collection("messages/conversations").query()).toHaveLength(150);
+});
+
+test("raising kept_days brings in the older messages of a chat already synced", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.said("t1", ANNA, "Forty days ago", 60 * 24 * 40);
+  fake.said("t1", ANNA, "Today", 10);
+  await engine.job("messages-messenger/sync");
+
+  await engine.set("messages-messenger/kept_days", 60);
+
+  expect((await chat("t1")).messages.map(({ text }) => text)).toEqual(["Forty days ago", "Today"]);
+});
+
+test("lowering kept_days drops older messages without reading the chats again", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.said("t1", ANNA, "Ten days ago", 60 * 24 * 10);
+  fake.said("t1", ANNA, "Today", 10);
+  await engine.job("messages-messenger/sync");
+  const readBefore = fake.asked.filter(({ method }) => method === "messages").length;
+
+  await engine.set("messages-messenger/kept_days", 5);
+
+  expect((await chat("t1")).messages.map(({ text }) => text)).toEqual(["Today"]);
+  expect(fake.asked.filter(({ method }) => method === "messages")).toHaveLength(readBefore);
+});
+
+test("raising chats brings in a quiet chat's messages within the kept days", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.chat("t2", [BO]);
+  fake.said("t1", ANNA, "Quiet for a while", 60 * 24 * 3);
+  fake.said("t2", BO, "Busy", 10);
+  await engine.set("messages-messenger/chats", 1);
+  await engine.job("messages-messenger/sync");
+
+  await engine.set("messages-messenger/chats", 2);
+
+  expect((await chat("t1")).messages.map(({ text }) => text)).toEqual(["Quiet for a while"]);
+});
+
+test("a re-read of more kept days that was cut short is done by the next sync", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.said("t1", ANNA, "Forty days ago", 60 * 24 * 40);
+  fake.said("t1", ANNA, "Today", 10);
+  await engine.job("messages-messenger/sync");
+  const allow = engine.refuse("messenger", "since", failureFrom("Too slow.", "timeout"));
+  await engine.set("messages-messenger/kept_days", 60).catch(() => {});
+  allow();
+
+  await engine.job("messages-messenger/sync");
+
+  expect((await chat("t1")).messages.map(({ text }) => text)).toEqual(["Forty days ago", "Today"]);
+});
+
+test("a quiet chat that comes into the listed chats brings its messages within the kept days", async () => {
+  const { engine, fake, chat } = await setUp();
+  fake.chat("t1", [ANNA]);
+  fake.chat("t2", [BO]);
+  fake.said("t1", ANNA, "Three days ago", 60 * 24 * 3);
+  fake.said("t2", BO, "Busy", 20);
+  await engine.set("messages-messenger/chats", 1);
+  await engine.job("messages-messenger/sync");
+  fake.said("t1", ANNA, "Back again", 10);
+
+  await engine.job("messages-messenger/sync");
+
+  expect((await chat("t1")).messages.map(({ text }) => text)).toEqual([
+    "Three days ago",
+    "Back again",
+  ]);
+});

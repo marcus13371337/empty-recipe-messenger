@@ -9,7 +9,6 @@ import {
   type Message,
 } from "./messenger";
 
-const KEPT_DAYS = 30;
 const OVERLAP_MS = 5 * 60_000;
 
 function unique<T extends { id: string }>(values: T[]): T[] {
@@ -22,9 +21,14 @@ const messagesIn = (value: JsonValue | undefined) =>
 const listingsIn = (value: JsonValue | undefined) =>
   listOf(value).flatMap((entry) => keptListing(entry) ?? []);
 
-async function freshMessages(context: JobContext, listed: Listed[], after: number) {
+async function freshMessages(
+  context: JobContext,
+  listed: Listed[],
+  readFrom: (conversation: string) => number,
+) {
   const found: Message[] = [];
   for (const { conversation, encrypted, last_activity_at } of listed) {
+    const after = readFrom(conversation.id);
     if (encrypted || !(Date.parse(last_activity_at) > after)) continue;
     const answer = objectOf(
       await context.connectors.call(CONNECTOR, "since", {
@@ -37,20 +41,36 @@ async function freshMessages(context: JobContext, listed: Listed[], after: numbe
   return found;
 }
 
-async function syncAccount(context: JobContext) {
-  const source = context.module;
-  const since = new Date(Date.now() - KEPT_DAYS * 86_400_000);
+async function readsFrom(context: JobContext, since: number) {
   const [kept] = await context
     .collection("messages/accounts")
-    .query({ where: { source, source_id: ACCOUNT.id } });
-  const syncedAt = kept?.synced_at ? Date.parse(kept.synced_at) - OVERLAP_MS : since.getTime();
+    .query({ where: { source: context.module, source_id: ACCOUNT.id } });
+  if (!kept?.synced_at) return () => since;
+  const syncedAt = Date.parse(kept.synced_at) - OVERLAP_MS;
+  const keptFrom = kept.newest ? Date.parse(kept.newest) : since;
+  if (since < keptFrom) return () => since;
+  const keptChats = new Set(
+    (await context.collection("messages/conversations").query({ where: { account: kept.id } })).map(
+      ({ source_id }) => source_id,
+    ),
+  );
+  return (conversation: string) => (keptChats.has(conversation) ? syncedAt : since);
+}
+
+async function syncAccount(context: JobContext) {
+  const source = context.module;
+  const keptDays = await context.setting("messages-messenger/kept_days");
+  const chats = await context.setting("messages-messenger/chats");
+  const since = new Date(Date.now() - keptDays * 86_400_000);
+  const readFrom = await readsFrom(context, since.getTime());
   return context.sources.syncing("messages", ACCOUNT, async () => {
     const listed = listingsIn(
-      objectOf(await context.connectors.call(CONNECTOR, "conversations", {})).conversations,
+      objectOf(await context.connectors.call(CONNECTOR, "conversations", { limit: chats }))
+        .conversations,
     );
     const waiting = objectOf(await context.connectors.call(CONNECTOR, "take_events", {}));
     const messages = unique([
-      ...(await freshMessages(context, listed, syncedAt)),
+      ...(await freshMessages(context, listed, readFrom)),
       ...messagesIn(waiting.messages),
     ]).filter(({ sent_at }) => Date.parse(sent_at) >= since.getTime());
     const oldestFirst = [...messages].sort((a, b) => Date.parse(a.sent_at) - Date.parse(b.sent_at));
@@ -68,6 +88,7 @@ async function syncAccount(context: JobContext) {
       conversations,
       messages,
       changed: messagesIn(waiting.changed),
+      newest: since.toISOString(),
     });
     await context.connectors.call(CONNECTOR, "drop_events", { upTo: numberOf(waiting.upTo) ?? 0 });
     return synced;
@@ -82,7 +103,11 @@ export const sync = job(
     timeout: "5m",
     every: "5m",
     catchUp: true,
-    when: [{ connector: CONNECTOR, on: ["changed", "added", "removed"] }],
+    when: [
+      { connector: CONNECTOR, on: ["changed", "added", "removed"] },
+      { setting: "messages-messenger/kept_days" },
+      { setting: "messages-messenger/chats" },
+    ],
   },
   async (context: JobContext, event?: JobEvent) => {
     const synced = await context.sources.feed("messages", {

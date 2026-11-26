@@ -54,10 +54,14 @@ export function fakeHelper() {
   };
 
   const answers: Record<string, (params: JsonObject) => JsonValue> = {
-    conversations: () => ({
-      conversations: [...chats.values()]
-        .sort((a, b) => Date.parse(b.last) - Date.parse(a.last))
-        .map((chat) => ({
+    conversations: ({ limit, before }) => {
+      const newestFirst = [...chats.values()].sort(
+        (a, b) => Date.parse(b.last) - Date.parse(a.last),
+      );
+      const start = typeof before === "string" ? Number(before) : 0;
+      const end = start + Math.min(typeof limit === "number" ? limit : 20, 100);
+      return {
+        conversations: newestFirst.slice(start, end).map((chat) => ({
           id: chat.id,
           name: chat.name,
           kind: chat.kind,
@@ -66,7 +70,9 @@ export function fakeHelper() {
           last_activity_at: chat.last,
           unread: chat.unread,
         })),
-    }),
+        ...(end < newestFirst.length && { next: String(end) }),
+      };
+    },
     messages: ({ conversation_id, limit, before }) => {
       const chat = chats.get(String(conversation_id));
       if (!chat) throw new Error("That conversation is unknown.");

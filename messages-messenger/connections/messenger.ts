@@ -21,7 +21,7 @@ import {
   reactionOf,
 } from "../messenger";
 
-const CONVERSATIONS = 100;
+const CONVERSATIONS_PAGE = 100;
 const KNOWN = 5_000;
 const PAGE = 100;
 const PAGES = 20;
@@ -212,6 +212,23 @@ export function messengerConnection(): CodeConnection {
       .slice(0, limit);
   };
 
+  const conversations = async (helper: HelperProgram, limit: number) => {
+    const found: Listed[] = [];
+    let before: string | null = null;
+    for (let fetched = 0; fetched < PAGES && found.length < limit; fetched += 1) {
+      const answer = objectOf(
+        await request(helper, "conversations", {
+          limit: Math.min(CONVERSATIONS_PAGE, limit - found.length),
+          ...(before !== null && { before }),
+        }),
+      );
+      found.push(...listOf(answer.conversations).flatMap((raw) => listed(raw) ?? []));
+      before = textOf(answer.next);
+      if (before === null) break;
+    }
+    return found;
+  };
+
   const send = async (helper: HelperProgram, args: JsonObject) => {
     const folder = join(await helper.folder(), "outgoing");
     await mkdir(folder, { recursive: true });
@@ -278,14 +295,14 @@ export function messengerConnection(): CodeConnection {
       conversations: {
         description: "The most recent Messenger chats, newest activity first",
         does: "read",
-        run: async (_args, { helperProgram }) => {
-          const answer = objectOf(
-            await request(helperProgram(HELPER), "conversations", { limit: CONVERSATIONS }),
-          );
-          return {
-            conversations: listOf(answer.conversations).flatMap((raw) => listed(raw) ?? []),
-          };
+        input: {
+          type: "object",
+          properties: { limit: { type: "integer", minimum: 1 } },
+          required: ["limit"],
         },
+        run: async (args, { helperProgram }) => ({
+          conversations: await conversations(helperProgram(HELPER), numberOf(args.limit) ?? 0),
+        }),
       },
       since: {
         description:
